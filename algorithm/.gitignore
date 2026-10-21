@@ -1,0 +1,8 @@
+weights/*.pt
+weights/*.onnx
+outputs/
+weights_demo/
+outputs_demo/
+__pycache__/
+*.py[cod]
+
