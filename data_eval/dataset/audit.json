@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "images": 1199,
+  "identities": 300,
+  "species_images": {
+    "cat": 599,
+    "dog": 600
+  },
+  "species_identities": {
+    "cat": 150,
+    "dog": 150
+  },
+  "partition_images": {
+    "test": 239,
+    "train": 720,
+    "val": 240
+  },
+  "split_images": {
+    "query": 96,
+    "gallery": 143,
+    "train": 720,
+    "val": 240
+  },
+  "protocols": {
+    "val": {
+      "cat": {
+        "positive_queries": 24,
+        "negative_queries": 24,
+        "gallery_images": 72
+      },
+      "dog": {
+        "positive_queries": 24,
+        "negative_queries": 24,
+        "gallery_images": 72
+      }
+    },
+    "test": {
+      "cat": {
+        "positive_queries": 24,
+        "negative_queries": 24,
+        "gallery_images": 71
+      },
+      "dog": {
+        "positive_queries": 24,
+        "negative_queries": 24,
+        "gallery_images": 72
+      }
+    }
+  },
+  "errors": [],
+  "limitations": [
+    "Perceptual hashes do not guarantee removal of every crop/near-duplicate; human review remains necessary",
+    "Identity labels inherited from source; no claim of exhaustive manual identity verification"
+  ]
+}

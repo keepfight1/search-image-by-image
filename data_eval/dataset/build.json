@@ -1,0 +1,8 @@
+{
+  "seed": 42,
+  "identities_per_species": 150,
+  "near_duplicate_rule": "pHash Hamming <=6 AND dHash Hamming <=6, or identical decoded pixels",
+  "max_image_side": 768,
+  "jpeg_quality": 92,
+  "negative_identity_fraction": 0.2
+}

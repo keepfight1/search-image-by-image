@@ -1,0 +1,118 @@
+{
+  "ok": true,
+  "cases": [
+    {
+      "case": "same_district",
+      "passed": true,
+      "response": {
+        "results": [
+          {
+            "id": "0db834541bf24646850c19f061bfeb16",
+            "image_id": "3311009df6c24236bb89a71d8a49a03f",
+            "image_url": "/uploads/3311009df6c24236bb89a71d8a49a03f.jpg",
+            "desc": {
+              "coat_color": "",
+              "pattern": "",
+              "size": "",
+              "breed": ""
+            },
+            "event_time": "2026-05-01 10:00",
+            "district": "浦东新区",
+            "distance": 0.0,
+            "score": 1.0,
+            "contact": ""
+          }
+        ],
+        "expanded": false,
+        "message": ""
+      }
+    },
+    {
+      "case": "expand_same_city",
+      "passed": true,
+      "response": {
+        "results": [
+          {
+            "id": "d20c94894a0b45dba7bd8cfbbd3fbac9",
+            "image_id": "ef676f5bffbd49aa9f3b42c601c3a6db",
+            "image_url": "/uploads/ef676f5bffbd49aa9f3b42c601c3a6db.jpg",
+            "desc": {
+              "coat_color": "",
+              "pattern": "",
+              "size": "",
+              "breed": ""
+            },
+            "event_time": "2026-05-01 10:00",
+            "district": "浦东新区",
+            "distance": 0.0,
+            "score": 1.0,
+            "contact": ""
+          }
+        ],
+        "expanded": true,
+        "message": ""
+      }
+    },
+    {
+      "case": "no_cross_city",
+      "passed": true,
+      "response": {
+        "results": [],
+        "expanded": true,
+        "message": "暂无可靠线索"
+      }
+    },
+    {
+      "case": "missing_coordinates",
+      "passed": true,
+      "response": {
+        "results": [
+          {
+            "id": "ff8898e29ea342cd98e51c4787864533",
+            "image_id": "ce45a223a50c4b72b3155312fdaea30f",
+            "image_url": "/uploads/ce45a223a50c4b72b3155312fdaea30f.jpg",
+            "desc": {
+              "coat_color": "",
+              "pattern": "",
+              "size": "",
+              "breed": ""
+            },
+            "event_time": "2026-05-01 10:00",
+            "district": "浦东新区",
+            "score": 1.0,
+            "contact": ""
+          }
+        ],
+        "expanded": false,
+        "message": ""
+      }
+    },
+    {
+      "case": "reverse_search",
+      "passed": true,
+      "response": {
+        "results": [
+          {
+            "id": "a19d223fb4104819a6b28e3e3881f47c",
+            "image_id": "95e2703883b640b780da89ffde210246",
+            "image_url": "/uploads/95e2703883b640b780da89ffde210246.jpg",
+            "desc": {
+              "coat_color": "",
+              "pattern": "",
+              "size": "",
+              "breed": ""
+            },
+            "event_time": "2026-05-01 10:00",
+            "district": "浦东新区",
+            "distance": 0.0,
+            "score": 1.0,
+            "contact": ""
+          }
+        ],
+        "expanded": false,
+        "message": ""
+      }
+    }
+  ],
+  "notice": "Same real image uploaded twice only to isolate API logic. Excluded from identity accuracy metrics."
+}

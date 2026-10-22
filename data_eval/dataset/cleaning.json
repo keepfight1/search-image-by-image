@@ -1,0 +1,151 @@
+{
+  "downloaded": 1800,
+  "rejected": [
+    {
+      "source_file": "cat_individuals_dataset/0033/0033_000.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0033/0033_003.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0033/0033_006.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0033/0033_009.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0033/0033_012.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0039/0039_000.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0039/0039_001.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0039/0039_002.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0039/0039_004.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0039/0039_005.JPG",
+      "reason": "抽样检查发现画面中同时有多只猫，目标个体不明确，暂不纳入子集。"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0052/0052_006.JPG",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0052/0052_013.JPG",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0078/0078_021.JPG",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0206/0206_004.JPG",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "cat_individuals_dataset/0226/0226_020.jpg",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "after_4_bis/1311/1311.3.jpg",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "after_4_bis/522/522.1.jpg",
+      "reason": "same-identity near duplicate"
+    },
+    {
+      "source_file": "after_4_bis/638/638.4.jpg",
+      "reason": "same-identity near duplicate"
+    }
+  ],
+  "ambiguous_identities": [
+    "cat_0220",
+    "cat_0221",
+    "cat_0269",
+    "cat_0270",
+    "cat_0394",
+    "cat_0415"
+  ],
+  "cross_identity_pairs": [
+    [
+      "cat_0220_806ffd58ed7d",
+      "cat_0221_b16e5e8b8f27"
+    ],
+    [
+      "cat_0220_d43d46d0aaf6",
+      "cat_0221_e5995c595120"
+    ],
+    [
+      "cat_0220_70eee1a890ff",
+      "cat_0221_29c5573bf52a"
+    ],
+    [
+      "cat_0220_639a1a46de73",
+      "cat_0221_1e58ca0e71f1"
+    ],
+    [
+      "cat_0220_f5f39815cae9",
+      "cat_0221_0ef39c175e03"
+    ],
+    [
+      "cat_0269_cc75ab44cca3",
+      "cat_0270_c5c362188d8e"
+    ],
+    [
+      "cat_0269_ed026fe0601f",
+      "cat_0270_cac5bdbc0573"
+    ],
+    [
+      "cat_0269_3cb4668d86bc",
+      "cat_0270_b4a69550f643"
+    ],
+    [
+      "cat_0269_a75eb429968d",
+      "cat_0270_6092fed7517e"
+    ],
+    [
+      "cat_0269_862192f4c26d",
+      "cat_0270_c0ec58c4e831"
+    ],
+    [
+      "cat_0394_f5d38c504a1b",
+      "cat_0415_bc74ad44b348"
+    ],
+    [
+      "cat_0394_61a6d6e812f1",
+      "cat_0415_7a7ffa92e221"
+    ],
+    [
+      "cat_0394_921827c7be28",
+      "cat_0415_0772c44d1eab"
+    ],
+    [
+      "cat_0394_efb9492810f1",
+      "cat_0415_b9c29a3ea578"
+    ],
+    [
+      "cat_0394_67f229d94ff9",
+      "cat_0415_83477689b2f1"
+    ]
+  ],
+  "usable_identities": {
+    "cat": 172,
+    "dog": 180
+  }
+}

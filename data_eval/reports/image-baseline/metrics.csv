@@ -1,0 +1,3 @@
+﻿species,top1,top5,false_accept_rate,threshold,positive_queries,negative_queries,true_accept_rate,correct_accept_rate
+cat,0.5,0.75,1.0,0.72,24,24,1.0,0.5
+dog,0.25,0.4166666666666667,1.0,0.68,24,24,1.0,0.25
