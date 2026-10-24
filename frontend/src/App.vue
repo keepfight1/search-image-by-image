@@ -1,7 +1,6 @@
 <template>
   <div class="container">
     <h1>宠物寻回匹配平台</h1>
-
     <!-- 信息发布表单 -->
     <div class="form-card">
       <div class="row">
@@ -11,7 +10,6 @@
           <label><input v-model="infoType" value="sight" type="radio"> 疑似流浪宠物目击</label>
         </div>
       </div>
-
       <div class="row">
         <label>动物类别 <span class="required">*</span></label>
         <select v-model="animalType">
@@ -20,29 +18,46 @@
           <option value="other">其他</option>
         </select>
       </div>
-
       <div class="row">
         <label>事件地点（走失/目击发生地）<span class="required">*</span></label>
-        <input v-model="eventArea" placeholder="例如：洪山区">
+        <input v-model="eventArea" placeholder="例如：浦东新区">
         <p class="tip-small">⚠️ 这里是宠物丢失/被看见的地点，不是你当前上传位置</p>
       </div>
-
       <div class="row">
         <label>事件时间（走失/目击时间）<span class="required">*</span></label>
         <input v-model="eventTime" type="datetime-local">
       </div>
-
       <div class="row">
-        <label>外貌描述（毛色、花纹、体型等，辅助匹配加分）<span class="required">*</span></label>
-        <textarea v-model="desc" rows="3" placeholder="示例：橘白相间，右耳缺一块，短腿"></textarea>
+        <label>宠物外貌信息（辅助匹配加分）<span class="required">*</span></label>
+        <div class="desc-grid">
+          <div>
+            <label class="sub-label">毛色</label>
+            <input v-model="desc.coat_color" placeholder="例：橘、白、黑">
+          </div>
+          <div>
+            <label class="sub-label">花纹</label>
+            <input v-model="desc.pattern" placeholder="例：虎斑、纯色、斑点">
+          </div>
+          <div>
+            <label class="sub-label">体型</label>
+            <select v-model="desc.size">
+              <option value="">请选择</option>
+              <option value="大">大</option>
+              <option value="中">中</option>
+              <option value="小">小</option>
+            </select>
+          </div>
+          <div>
+            <label class="sub-label">品种（选填）</label>
+            <input v-model="desc.breed" placeholder="例：英短，无则留空">
+          </div>
+        </div>
         <p class="tip-small">仅作为辅助加分，不会因为描述不符直接筛掉候选</p>
       </div>
-
       <div class="row">
         <label>联系方式（自愿公开，匹配成功后可见）</label>
         <input v-model="contact" placeholder="选填">
       </div>
-
       <div class="row">
         <label>当前上传位置（用于定位，可获取/手动填写）<span class="required">*</span></label>
         <div class="loc-row">
@@ -51,7 +66,6 @@
         </div>
         <p class="tip-small">上传位置 ≠ 事件地点，仅辅助计算距离，不参与筛选</p>
       </div>
-
       <!-- 图片上传 -->
       <div class="upload-area"
            @click="triggerInput"
@@ -69,7 +83,6 @@
           <div class="change-img" @click.stop="triggerInput">更换图片</div>
         </div>
       </div>
-
       <div class="btn-row">
         <button class="search-btn" @click="startMatch" :disabled="loading || !imgSrc">
           {{ loading ? "匹配检索中..." : "开始匹配" }}
@@ -77,7 +90,6 @@
         <button class="reset-btn" @click="resetForm" :disabled="loading">重置表单</button>
       </div>
     </div>
-
     <!-- 匹配结果区域 -->
     <div class="result-card" v-if="showResult">
       <div class="result-head">
@@ -87,7 +99,6 @@
         </button>
       </div>
       <p class="warn-tip">⚠️ 相似度仅用于排序，不代表找回概率；文本描述仅做加分，不做硬性过滤</p>
-
       <div v-if="loading" class="skeleton-wrap">
         <div class="skeleton-item" v-for="n in 2" :key="n">
           <div class="skeleton-img"></div>
@@ -98,24 +109,22 @@
           </div>
         </div>
       </div>
-
       <div v-else-if="resultList.length === 0" class="empty">
         <div class="empty-icon">🐾</div>
         <p>暂无可靠线索</p>
         <p class="empty-sub">可尝试手动扩大至全市搜索</p>
       </div>
-
       <template v-else>
         <div class="item" v-for="(item, idx) in resultList" :key="idx">
-          <img :src="item.img" class="item-img">
+          <img :src="item.image_url" class="item-img">
           <div class="item-info">
             <div class="item-title">
-              <b>{{ item.animalType === 'cat' ? '猫咪' : item.animalType === 'dog' ? '狗狗' : '其他' }}</b>
-              <span class="badge">{{ item.eventArea }}</span>
+              <b>{{ item.species === 'cat' ? '猫咪' : item.species === 'dog' ? '狗狗' : '其他' }}</b>
+              <span class="badge">{{ item.district }}</span>
             </div>
             <div><b>事件时间：</b>{{ item.eventTime }}</div>
-            <div><b>距离：</b>{{ item.distance }}</div>
-            <div><b>外貌描述：</b>{{ item.desc }}</div>
+            <div><b>距离：</b>{{ item.distance !== undefined ? item.distance + " km" : "无坐标" }}</div>
+            <div><b>外貌：</b>{{formatDesc(item.desc)}}</div>
             <div>
               <b>相似度：</b>
               <span class="score-bar">
@@ -131,7 +140,6 @@
         </div>
       </template>
     </div>
-
     <!-- 详情弹窗 -->
     <div class="mask" v-if="detailShow" @click.self="closeDetail">
       <div class="detail-modal">
@@ -140,20 +148,19 @@
           <span class="close" @click="closeDetail">×</span>
         </div>
         <div class="modal-body">
-          <img :src="currentDetail.img" class="modal-img" />
-          <div class="info-line"><b>信息类型：</b>{{ currentDetail.infoType === 'lost' ? '宠物走失' : '疑似流浪目击' }}</div>
-          <div class="info-line"><b>动物类别：</b>{{ currentDetail.animalType === 'cat' ? '猫咪' : currentDetail.animalType === 'dog' ? '狗狗' : '其他' }}</div>
-          <div class="info-line"><b>事件地点：</b>{{ currentDetail.eventArea }}</div>
-          <div class="info-line"><b>事件时间：</b>{{ currentDetail.eventTime }}</div>
-          <div class="info-line"><b>距离：</b>{{ currentDetail.distance }}</div>
-          <div class="info-line"><b>外貌描述：</b>{{ currentDetail.desc }}</div>
+          <img :src="currentDetail.image_url" class="modal-img" />
+          <div class="info-line"><b>image_id：</b>{{currentDetail.image_id}}</div>
+          <div class="info-line"><b>动物类别：</b>{{ currentDetail.species === 'cat' ? '猫咪' : currentDetail.species === 'dog' ? '狗狗' : '其他' }}</div>
+          <div class="info-line"><b>事件地点：</b>{{ currentDetail.district }}</div>
+          <div class="info-line"><b>事件时间：</b>{{ currentDetail.event_time }}</div>
+          <div class="info-line"><b>距离：</b>{{ currentDetail.distance !== undefined ? currentDetail.distance + " km" : "无坐标" }}</div>
+          <div class="info-line"><b>外貌描述：</b>{{formatDesc(currentDetail.desc)}}</div>
           <div class="info-line"><b>相似度（排序用）：</b>{{ (currentDetail.score*100).toFixed(2) }}%</div>
           <div class="info-line" v-if="currentDetail.contact"><b>联系方式：</b>{{ currentDetail.contact }}</div>
           <div class="info-line" v-else><b>联系方式：</b>未公开</div>
         </div>
       </div>
     </div>
-
     <!-- 联系弹窗 -->
     <div class="mask" v-if="contactShow" @click.self="contactShow=false">
       <div class="contact-modal">
@@ -173,7 +180,6 @@
         </div>
       </div>
     </div>
-
     <!-- 返回顶部 -->
     <button class="back-top" v-if="showBackTop" @click="scrollToTop">↑</button>
   </div>
@@ -181,17 +187,19 @@
 
 <script setup>
 import {ref, onMounted, onUnmounted} from 'vue'
+//【对接后端时取消注释】import axios from 'axios'
 
-// 表单数据
+//表单
 const infoType = ref('lost')
 const animalType = ref('cat')
 const eventArea = ref('')
-const eventTime = ref('') // 事件时间：用户填写，必填
-const desc = ref('')
+const eventTime = ref('')
+const desc = ref({coat_color:'',pattern:'',size:'',breed:''})
 const contact = ref('')
-const uploadArea = ref('') // 上传位置：必填
-// 上传时间：提交瞬间自动生成，不展示给用户，传给后端
+const uploadArea = ref('')
 let uploadTime = ''
+const event_lat = ref(null)
+const event_lng = ref(null)
 
 const fileInput = ref(null)
 const imgSrc = ref('')
@@ -201,42 +209,53 @@ const loading = ref(false)
 const showResult = ref(false)
 const resultList = ref([])
 
-// 弹窗
+//弹窗
 const detailShow = ref(false)
 const currentDetail = ref({})
 const contactShow = ref(false)
 const currentContact = ref('')
 
-// 返回顶部
+//返回顶部
 const showBackTop = ref(false)
-function onScroll(){
-  showBackTop.value = window.scrollY > 300
-}
-function scrollToTop(){
-  window.scrollTo({top:0, behavior:'smooth'})
-}
+function onScroll(){ showBackTop.value = window.scrollY > 300 }
+function scrollToTop(){ window.scrollTo({top:0, behavior:'smooth'}) }
 onMounted(()=>window.addEventListener('scroll', onScroll))
 onUnmounted(()=>window.removeEventListener('scroll', onScroll))
 
-// 获取浏览器定位
+//格式化desc对象展示文本
+function formatDesc(d){
+  if(!d) return "无"
+  const arr = []
+  if(d.coat_color) arr.push("毛色:"+d.coat_color)
+  if(d.pattern) arr.push("花纹:"+d.pattern)
+  if(d.size) arr.push("体型:"+d.size)
+  if(d.breed) arr.push("品种:"+d.breed)
+  return arr.length>0 ? arr.join("；") :"无"
+}
+
+//定位
 function getLocation(){
   if(!navigator.geolocation){
-    alert("浏览器不支持定位，请手动填写上传位置")
+    alert("浏览器不支持定位，请手动填写上传位置，坐标置为null")
+    event_lat.value = null
+    event_lng.value = null
     return
   }
   navigator.geolocation.getCurrentPosition(
     (pos)=>{
-      uploadArea.value = "定位获取成功（前端模拟）"
+      uploadArea.value = "定位获取成功"
+      event_lat.value = pos.coords.latitude
+      event_lng.value = pos.coords.longitude
     },
     ()=>{
-      alert("定位失败，请手动填写上传位置")
+      alert("定位失败，坐标置为null，请手动填写上传位置")
+      event_lat.value = null
+      event_lng.value = null
     }
   )
 }
 
-function triggerInput(){
-  fileInput.value.click()
-}
+function triggerInput(){ fileInput.value.click() }
 function onDrop(e){
   isDragover.value = false
   const f = e.dataTransfer.files[0]
@@ -262,9 +281,7 @@ function openDetail(row){
   currentDetail.value = row
   detailShow.value = true
 }
-function closeDetail(){
-  detailShow.value = false
-}
+function closeDetail(){ detailShow.value = false }
 function openContact(row){
   currentContact.value = row.contact || ''
   contactShow.value = true
@@ -275,86 +292,155 @@ function resetForm(){
   animalType.value = 'cat'
   eventArea.value = ''
   eventTime.value = ''
-  desc.value = ''
+  desc.value = {coat_color:'',pattern:'',size:'',breed:''}
   contact.value = ''
   uploadArea.value = ''
+  event_lat.value = null
+  event_lng.value = null
   imgSrc.value = ''
   selectFile.value = null
   showResult.value = false
   resultList.value = []
 }
 
-// ========= 匹配模拟库 =========
-const lostLib = [
-  {img:"https://picsum.photos/id/40/220/220",animalType:"cat",eventArea:"洪山区",eventTime:"2026-10-20 18:30",distance:"1.2km",desc:"橘白，右耳缺角，短毛",score:0.93,contact:"138xxxx1111",infoType:"lost"},
-  {img:"https://picsum.photos/id/41/220/220",animalType:"cat",eventArea:"洪山区",eventTime:"2026-10-21 08:10",distance:"2.5km",desc:"纯黑白爪公猫",score:0.86,contact:"",infoType:"lost"},
-  {img:"https://picsum.photos/id/42/220/220",animalType:"cat",eventArea:"武昌区",eventTime:"2026-10-20 22:00",distance:"7.8km",desc:"三花圆脸胆小",score:0.81,contact:"139xxxx2222",infoType:"lost"},
-]
-const sightLib = [
-  {img:"https://picsum.photos/id/43/220/220",animalType:"cat",eventArea:"江岸区",eventTime:"2026-10-19 16:00",distance:"12km",desc:"英短蓝猫，胖，无项圈",score:0.77,contact:"",infoType:"sight"},
-  {img:"https://picsum.photos/id/44/220/220",animalType:"cat",eventArea:"江夏区",eventTime:"2026-10-21 07:20",distance:"18km",desc:"橘猫尾巴尖白色",score:0.72,contact:"137xxxx3333",infoType:"sight"},
+//========模拟测试数据（对接后端时整块删除下面模拟库）========
+const mockResults = [
+  {
+    image_id:"img_001",
+    image_url:"https://picsum.photos/id/40/220/220",
+    species:"cat",
+    district:"浦东新区",
+    event_time:"2026‑05‑01 10:00",
+    distance:3.2,
+    desc:{coat_color:"橘",pattern:"虎斑",size:"中",breed:""},
+    score:0.92,
+    contact:"138****1111"
+  },
+  {
+    image_id:"img_002",
+    image_url:"https://picsum.photos/id/41/220/220",
+    species:"cat",
+    district:"浦东新区",
+    event_time:"2026‑05‑02 09:20",
+    distance:4.5,
+    desc:{coat_color:"黑",pattern:"纯色",size:"中",breed:""},
+    score:0.84,
+    contact:""
+  }
 ]
 
-// 开始匹配：表单校验 + 自动记录上传时间
+//开始匹配（模拟版本）
 async function startMatch(){
-  if(!eventArea.value.trim()){
-    alert('请填写事件地点（走失/目击发生区域）')
-    return
-  }
-  if(!eventTime.value.trim()){
-    alert('请填写事件时间（走失/目击时间）')
-    return
-  }
-  if(!uploadArea.value.trim()){
-    alert('请填写当前上传位置，可以点击获取定位或者手动输入')
-    return
-  }
-  if(!desc.value.trim()){
-    alert('请填写外貌描述')
-    return
-  }
-  if(!selectFile.value){
-    alert('请上传宠物图片')
-    return
-  }
+  if(!eventArea.value.trim()){ alert('请填写事件地点');return }
+  if(!eventTime.value.trim()){ alert('请填写事件时间');return }
+  if(!uploadArea.value.trim()){ alert('请填写上传位置');return }
+  if(!desc.value.coat_color.trim()){ alert('至少填写宠物毛色');return }
+  if(!selectFile.value){ alert('请上传图片');return }
 
-  // 提交瞬间自动记录上传时间，对接后端直接传给接口
   uploadTime = new Date().toISOString()
-  console.log('本次提交的上传时间(给后端):', uploadTime)
-
+  console.log("上传时间：",uploadTime)
   loading.value = true
   showResult.value = true
   resultList.value = []
   await new Promise(r=>setTimeout(r,1200))
-
-  let targetLib = infoType.value === 'lost' ? sightLib : lostLib
-  let sameTypeList = targetLib.filter(item=>item.animalType === animalType.value)
-  let areaList = sameTypeList.filter(item=>item.eventArea === eventArea.value.trim())
-  const threshold = 0.7
-  let validArea = areaList.filter(x=>x.score >= threshold)
-
-  if(validArea.length > 0){
-    resultList.value = validArea.sort((a,b)=>b.score - a.score).slice(0,5)
-  }else{
-    let cityAll = sameTypeList.filter(x=>x.score >= threshold)
-    if(cityAll.length>0){
-      resultList.value = cityAll.sort((a,b)=>b.score - a.score).slice(0,5)
-    }else{
-      resultList.value = []
-    }
-  }
+  resultList.value = [...mockResults]
   loading.value = false
 }
 
+//全市搜索（模拟版本）
 async function expandCitySearch(){
   loading.value = true
   resultList.value = []
   await new Promise(r=>setTimeout(r,1200))
-  let targetLib = infoType.value === 'lost' ? sightLib : lostLib
-  let cityAll = targetLib.filter(item=>item.animalType === animalType.value && item.score >= 0.7)
-  resultList.value = cityAll.sort((a,b)=>b.score - a.score).slice(0,5)
+  resultList.value = [...mockResults]
   loading.value = false
 }
+
+/*
+//====================【对接后端，启用此整块，删除上面模拟库】====================
+async function startMatch(){
+  if(!eventArea.value.trim()){ alert('请填写事件地点');return }
+  if(!eventTime.value.trim()){ alert('请填写事件时间');return }
+  if(!uploadArea.value.trim()){ alert('请填写上传位置');return }
+  if(!desc.value.coat_color.trim()){ alert('至少填写宠物毛色');return }
+  if(!selectFile.value){ alert('请上传图片');return }
+
+  uploadTime = new Date().toISOString()
+  loading.value = true
+  showResult.value = true
+  resultList.value = []
+  try{
+    //1.上传图片
+    const formImg = new FormData()
+    formImg.append('file', selectFile.value)
+    const uploadRes = await axios.post('/api/upload', formImg)
+    const imageUrl = uploadRes.data.image_url
+
+    //2.发布记录
+    const publishBody = {
+      species: animalType.value,
+      type: infoType.value,
+      images: [imageUrl],
+      desc: {...desc.value},
+      event_city:"上海",
+      event_district:eventArea.value,
+      event_time:eventTime.value.replace('T',' '),
+      event_lat:event_lat.value,
+      event_lng:event_lng.value,
+      contact:contact.value
+    }
+    if(infoType.value === "lost"){
+      await axios.post('/api/pets',publishBody)
+    }else{
+      await axios.post('/api/sightings',publishBody)
+    }
+
+    //3.检索
+    const searchBody = {
+      species:animalType.value,
+      event_city:"上海",
+      event_district:eventArea.value,
+      event_time:eventTime.value.replace('T',' '),
+      desc:{...desc.value},
+      top_k:5
+    }
+    const searchRes = await axios.post('/api/search',searchBody)
+    const data = searchRes.data
+    resultList.value = data.results ?? []
+    if(data.message) alert(data.message)
+  }catch(err){
+    console.error(err)
+    alert("请求出错，请确认后端服务已启动")
+  }finally{
+    loading.value = false
+  }
+}
+
+async function expandCitySearch(){
+  if(!eventArea.value) return
+  loading.value = true
+  resultList.value = []
+  try{
+    const searchBody = {
+      species:animalType.value,
+      event_city:"上海",
+      event_district:"",
+      event_time:eventTime.value.replace('T',' '),
+      desc:{...desc.value},
+      top_k:5
+    }
+    const searchRes = await axios.post('/api/search',searchBody)
+    const data = searchRes.data
+    resultList.value = data.results ?? []
+    if(data.message) alert(data.message)
+  }catch(err){
+    console.error(err)
+    alert("全市搜索请求失败")
+  }finally{
+    loading.value = false
+  }
+}
+*/
 </script>
 
 <style scoped>
@@ -374,6 +460,8 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .loc-row{display:flex;gap:8px}
 .loc-row input{flex:1}
 .loc-btn{white-space:nowrap;padding:0 12px;border:1px solid #2b85d9;background:#fff;color:#2b85d9;border-radius:6px;cursor:pointer}
+.desc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sub-label{font-size:13px;font-weight:normal;margin-bottom:3px}
 
 .upload-area{width:100%;height:220px;border:2px dashed #ccc;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:16px 0;transition:.2s;position:relative;overflow:hidden}
 .upload-area.dragover{border-color:#2b85d9;background:#f0f7ff}
