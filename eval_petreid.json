@@ -1,0 +1,76 @@
+{
+  "model_version": "petreid-resnet50-gem-arcface-v1.0.0",
+  "backend": "petreid",
+  "data_root": "F:\\以图搜图\\dataset",
+  "query_split": "query",
+  "gallery_split": "gallery",
+  "threshold": null,
+  "preprocess": {
+    "model_version": "petreid-resnet50-gem-arcface-v1.0.0",
+    "embedding_dim": 512,
+    "embedding_dtype": "float16",
+    "l2_normalized": true,
+    "input": {
+      "color": "RGB",
+      "resize": [
+        224,
+        224
+      ],
+      "resize_mode": "direct_resize",
+      "interpolation": "bicubic",
+      "mean": [
+        0.485,
+        0.456,
+        0.406
+      ],
+      "std": [
+        0.229,
+        0.224,
+        0.225
+      ]
+    }
+  },
+  "overall": {
+    "top1": 0.7,
+    "top5": 0.8,
+    "mAP": 0.6093,
+    "num_queries": 160,
+    "num_negative_queries": 40
+  },
+  "per_species": {
+    "cat": {
+      "top1": 0.6625,
+      "top5": 0.7625,
+      "mAP": 0.5694,
+      "num_queries": 80,
+      "num_negative_queries": 20
+    },
+    "dog": {
+      "top1": 0.75,
+      "top5": 0.8625,
+      "mAP": 0.6687,
+      "num_queries": 80,
+      "num_negative_queries": 20
+    }
+  },
+  "contract": [
+    {
+      "species": "cat",
+      "top1": 0.6625,
+      "top5": 0.7625,
+      "false_accept_rate": null,
+      "threshold": null
+    },
+    {
+      "species": "dog",
+      "top1": 0.75,
+      "top5": 0.8625,
+      "false_accept_rate": null,
+      "threshold": null
+    }
+  ],
+  "missing_images": {
+    "query": [],
+    "gallery": []
+  }
+}

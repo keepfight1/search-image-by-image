@@ -1,0 +1,58 @@
+{
+  "model_version": "clip-vit-b-32-openai-baseline",
+  "backend": "clip",
+  "data_root": "F:\\以图搜图\\dataset",
+  "query_split": "query",
+  "gallery_split": "gallery",
+  "threshold": null,
+  "preprocess": {
+    "source": "open_clip.create_model_and_transforms",
+    "model_name": "ViT-B-32",
+    "embedding_dim": 512,
+    "l2_normalized": true,
+    "note": "CLIP 基线使用 open_clip 自带预处理；与主模型 petreid 的 preprocess.json 不同。"
+  },
+  "overall": {
+    "top1": 0.6562,
+    "top5": 0.7312,
+    "mAP": 0.5087,
+    "num_queries": 160,
+    "num_negative_queries": 40
+  },
+  "per_species": {
+    "cat": {
+      "top1": 0.6625,
+      "top5": 0.75,
+      "mAP": 0.5197,
+      "num_queries": 80,
+      "num_negative_queries": 20
+    },
+    "dog": {
+      "top1": 0.65,
+      "top5": 0.7125,
+      "mAP": 0.4993,
+      "num_queries": 80,
+      "num_negative_queries": 20
+    }
+  },
+  "contract": [
+    {
+      "species": "cat",
+      "top1": 0.6625,
+      "top5": 0.75,
+      "false_accept_rate": null,
+      "threshold": null
+    },
+    {
+      "species": "dog",
+      "top1": 0.65,
+      "top5": 0.7125,
+      "false_accept_rate": null,
+      "threshold": null
+    }
+  ],
+  "missing_images": {
+    "query": [],
+    "gallery": []
+  }
+}
