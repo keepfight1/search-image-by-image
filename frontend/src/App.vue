@@ -7,7 +7,7 @@
         <label>信息类型 <span class="required">*</span></label>
         <div class="radio-group">
           <label><input v-model="infoType" value="lost" type="radio"> 宠物走失</label>
-          <label><input v-model="infoType" value="sight" type="radio"> 疑似流浪宠物目击</label>
+          <label><input v-model="infoType" value="witness" type="radio"> 疑似流浪宠物目击</label>
         </div>
       </div>
       <div class="row">
@@ -122,7 +122,7 @@
               <b>{{ item.species === 'cat' ? '猫咪' : item.species === 'dog' ? '狗狗' : '其他' }}</b>
               <span class="badge">{{ item.district }}</span>
             </div>
-            <div><b>事件时间：</b>{{ item.eventTime }}</div>
+            <div><b>事件时间：</b>{{ item.event_time }}</div>
             <div><b>距离：</b>{{ item.distance !== undefined ? item.distance + " km" : "无坐标" }}</div>
             <div><b>外貌：</b>{{formatDesc(item.desc)}}</div>
             <div>
@@ -187,7 +187,7 @@
 
 <script setup>
 import {ref, onMounted, onUnmounted} from 'vue'
-//【对接后端时取消注释】import axios from 'axios'
+import axios from 'axios'
 
 //表单
 const infoType = ref('lost')
@@ -200,7 +200,6 @@ const uploadArea = ref('')
 let uploadTime = ''
 const event_lat = ref(null)
 const event_lng = ref(null)
-
 const fileInput = ref(null)
 const imgSrc = ref('')
 const selectFile = ref(null)
@@ -303,61 +302,7 @@ function resetForm(){
   resultList.value = []
 }
 
-//========模拟测试数据（对接后端时整块删除下面模拟库）========
-const mockResults = [
-  {
-    image_id:"img_001",
-    image_url:"https://picsum.photos/id/40/220/220",
-    species:"cat",
-    district:"浦东新区",
-    event_time:"2026‑05‑01 10:00",
-    distance:3.2,
-    desc:{coat_color:"橘",pattern:"虎斑",size:"中",breed:""},
-    score:0.92,
-    contact:"138****1111"
-  },
-  {
-    image_id:"img_002",
-    image_url:"https://picsum.photos/id/41/220/220",
-    species:"cat",
-    district:"浦东新区",
-    event_time:"2026‑05‑02 09:20",
-    distance:4.5,
-    desc:{coat_color:"黑",pattern:"纯色",size:"中",breed:""},
-    score:0.84,
-    contact:""
-  }
-]
-
-//开始匹配（模拟版本）
-async function startMatch(){
-  if(!eventArea.value.trim()){ alert('请填写事件地点');return }
-  if(!eventTime.value.trim()){ alert('请填写事件时间');return }
-  if(!uploadArea.value.trim()){ alert('请填写上传位置');return }
-  if(!desc.value.coat_color.trim()){ alert('至少填写宠物毛色');return }
-  if(!selectFile.value){ alert('请上传图片');return }
-
-  uploadTime = new Date().toISOString()
-  console.log("上传时间：",uploadTime)
-  loading.value = true
-  showResult.value = true
-  resultList.value = []
-  await new Promise(r=>setTimeout(r,1200))
-  resultList.value = [...mockResults]
-  loading.value = false
-}
-
-//全市搜索（模拟版本）
-async function expandCitySearch(){
-  loading.value = true
-  resultList.value = []
-  await new Promise(r=>setTimeout(r,1200))
-  resultList.value = [...mockResults]
-  loading.value = false
-}
-
-/*
-//====================【对接后端，启用此整块，删除上面模拟库】====================
+// 业务请求逻辑
 async function startMatch(){
   if(!eventArea.value.trim()){ alert('请填写事件地点');return }
   if(!eventTime.value.trim()){ alert('请填写事件时间');return }
@@ -440,7 +385,6 @@ async function expandCitySearch(){
     loading.value = false
   }
 }
-*/
 </script>
 
 <style scoped>
@@ -462,7 +406,6 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .loc-btn{white-space:nowrap;padding:0 12px;border:1px solid #2b85d9;background:#fff;color:#2b85d9;border-radius:6px;cursor:pointer}
 .desc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .sub-label{font-size:13px;font-weight:normal;margin-bottom:3px}
-
 .upload-area{width:100%;height:220px;border:2px dashed #ccc;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:16px 0;transition:.2s;position:relative;overflow:hidden}
 .upload-area.dragover{border-color:#2b85d9;background:#f0f7ff}
 .upload-placeholder{text-align:center;color:#999}
@@ -471,25 +414,21 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .preview-img{max-height:100%;max-width:100%;object-fit:contain}
 .change-img{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;padding:6px 12px;border-radius:6px;font-size:13px;cursor:pointer}
 .change-img:hover{background:rgba(0,0,0,0.8)}
-
 .btn-row{display:flex;gap:12px;margin-top:8px}
 .search-btn{flex:1;padding:12px;border:none;background:#2b85d9;color:#fff;border-radius:8px;font-size:16px;cursor:pointer;transition:.2s}
 .search-btn:hover{background:#1e6fb8}
 .search-btn:disabled{background:#9dc3e6;cursor:not-allowed}
 .reset-btn{padding:12px 24px;border:1px solid #ccc;background:#fff;color:#666;border-radius:8px;font-size:16px;cursor:pointer}
 .reset-btn:hover{background:#f5f5f5}
-
 .result-card{border:1px solid #e5e5e5;border-radius:12px;padding:24px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
 .result-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .expand-btn{padding:6px 14px;border:1px solid #2b85d9;background:#fff;color:#2b85d9;border-radius:6px;cursor:pointer;font-size:14px}
 .expand-btn:hover{background:#f0f7ff}
 .expand-btn:disabled{opacity:0.6;cursor:not-allowed}
 .warn-tip{color:#d44333;font-size:14px;margin-bottom:16px}
-
 .empty{padding:50px 20px;text-align:center;color:#999}
 .empty-icon{font-size:48px;margin-bottom:12px}
 .empty-sub{font-size:13px;margin-top:6px;color:#bbb}
-
 .item{display:flex;gap:16px;border:1px solid #eee;border-radius:10px;padding:14px;margin-bottom:14px}
 .item-img{width:160px;height:160px;object-fit:cover;border-radius:8px;flex-shrink:0}
 .item-info{flex:1;display:flex;flex-direction:column;gap:6px;font-size:14px;color:#444}
@@ -500,12 +439,10 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .detail-btn:hover{background:#444}
 .contact-btn{padding:6px 14px;border:none;background:#2b85d9;color:#fff;border-radius:6px;cursor:pointer;font-size:13px}
 .contact-btn:hover{background:#1e6fb8}
-
 .score-bar{display:inline-flex;align-items:center;gap:6px}
 .score-fill{width:80px;height:8px;background:#eee;border-radius:4px;overflow:hidden;display:inline-block;position:relative}
 .score-fill::after{content:'';display:block;height:100%;background:linear-gradient(90deg,#42b983,#2b85d9);border-radius:4px}
 .score-bar em{font-style:normal;font-size:13px;color:#42b983;font-weight:bold}
-
 .skeleton-wrap{padding:20px 0}
 .skeleton-item{display:flex;gap:16px;margin-bottom:20px}
 .skeleton-img{width:160px;height:160px;background:#eee;border-radius:8px;flex-shrink:0;animation:shimmer 1.5s infinite}
@@ -513,7 +450,6 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .skeleton-line{height:14px;background:#eee;border-radius:4px;animation:shimmer 1.5s infinite}
 .w60{width:60%}.w40{width:40%}.w80{width:80%}
 @keyframes shimmer{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
-
 .mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999}
 .detail-modal,.contact-modal{width:520px;max-width:90vw;background:#fff;border-radius:12px;overflow:hidden}
 .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee}
@@ -526,7 +462,6 @@ input:focus,select:focus,textarea:focus{border-color:#2b85d9}
 .contact-label{color:#999;font-size:14px;margin-bottom:8px}
 .contact-number{font-size:28px;color:#2b85d9;font-weight:bold;margin-bottom:12px;letter-spacing:1px}
 .contact-tip{color:#999;font-size:13px;margin-top:16px}
-
 .back-top{position:fixed;right:30px;bottom:40px;width:44px;height:44px;border-radius:50%;border:none;background:#2b85d9;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:100}
 .back-top:hover{background:#1e6fb8}
 </style>
