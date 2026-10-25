@@ -102,6 +102,7 @@ class SearchResult(BaseModel):
     id: str
     image_id: str
     image_url: str
+    species: Species
     desc: Description
     event_time: str
     district: str

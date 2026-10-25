@@ -153,6 +153,7 @@ class BackendService:
                 "id": candidate["id"],
                 "image_id": candidate["image_id"],
                 "image_url": candidate["image_url"],
+                "species": candidate["species"],
                 "desc": candidate["desc"],
                 "event_time": candidate["event_time"],
                 "district": candidate["event_district"],
