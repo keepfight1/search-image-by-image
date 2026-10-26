@@ -72,7 +72,7 @@ def save_contact_sheets(source: Path, ids: list[str], dest: Path) -> None:
         sheet.save(dest / f"cats_{start + 1:02d}_{min(start + 10, len(ids)):02d}.jpg", quality=85)
 
 
-def build(source: Path, output: Path, label_path: Path, max_edge: int) -> dict:
+def build(source: Path, output: Path, label_path: Path, max_edge: int, force: bool = False) -> dict:
     ids = first_50_ids(source)
     labels = read_labels(label_path, ids)
     split_by_id = split_ids(ids)
@@ -85,13 +85,22 @@ def build(source: Path, output: Path, label_path: Path, max_edge: int) -> dict:
         files = sorted(p for p in (source / cat_id).iterdir() if p.suffix.lower() in IMAGE_SUFFIXES)
         for index, path in enumerate(files):
             image_id = f"cat50_{cat_id}_{index:04d}"
+            destination = images_dir / f"{image_id}.jpg"
             try:
-                with Image.open(path) as opened:
-                    image = ImageOps.exif_transpose(opened).convert("RGB")
-                    image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
-                    if image.width < 64 or image.height < 64:
-                        raise ValueError("image too small")
-                    image.save(images_dir / f"{image_id}.jpg", "JPEG", quality=88, optimize=True)
+                reusable = not force and destination.is_file() and destination.stat().st_mtime >= path.stat().st_mtime
+                if reusable:
+                    try:
+                        with Image.open(destination) as cached:
+                            cached.verify()
+                    except (UnidentifiedImageError, OSError):
+                        reusable = False
+                if not reusable:
+                    with Image.open(path) as opened:
+                        image = ImageOps.exif_transpose(opened).convert("RGB")
+                        image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+                        if image.width < 64 or image.height < 64:
+                            raise ValueError("image too small")
+                        image.save(destination, "JPEG", quality=88, optimize=True)
             except (UnidentifiedImageError, OSError, ValueError) as exc:
                 skipped.append({"source": str(path), "reason": str(exc)})
                 continue
@@ -107,6 +116,11 @@ def build(source: Path, output: Path, label_path: Path, max_edge: int) -> dict:
                 "split": split,
                 "source": "Cat Individual Images",
                 "source_file": f"{cat_id}/{path.name}",
+                "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "license": "verify_original_source_before_redistribution",
+                "capture_session": None,
+                "bbox": None,
+                "quality": "unreviewed",
                 "desc": {
                     "coat_color": label["coat_color"],
                     "pattern": label["pattern"],
@@ -114,6 +128,11 @@ def build(source: Path, output: Path, label_path: Path, max_edge: int) -> dict:
                     "breed": label["breed"],
                 },
                 "label_review_status": label["review_status"],
+                "label_source": {
+                    "sample_reviewed": "manual_two_photo_sample",
+                    "full_reviewed": "manual_full_review",
+                    "needs_review": "manual_provisional",
+                }[label["review_status"]],
             })
     with metadata_path.open("w", encoding="utf-8") as handle:
         for row in records:
@@ -140,12 +159,12 @@ def main() -> None:
     parser.add_argument("--labels", type=Path, default=Path("dataset/first50_labels.csv"))
     parser.add_argument("--max-edge", type=int, default=1200)
     parser.add_argument("--contact-sheets", action="store_true")
+    parser.add_argument("--force", action="store_true", help="Reprocess images even when existing JPEGs are newer")
     args = parser.parse_args()
     ids = first_50_ids(args.source)
     if args.contact_sheets:
         save_contact_sheets(args.source, ids, args.output / "contact_sheets")
-    else:
-        print(json.dumps(build(args.source, args.output, args.labels, args.max_edge), ensure_ascii=False, indent=2))
+    print(json.dumps(build(args.source, args.output, args.labels, args.max_edge, args.force), ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

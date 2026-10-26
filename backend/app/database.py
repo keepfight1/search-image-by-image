@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS app_user (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE IF NOT EXISTS app_session (
@@ -82,6 +83,17 @@ CREATE TABLE IF NOT EXISTS contact_request (
     state TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL,
     UNIQUE (requester_user_id, target_type, target_id)
+);
+
+CREATE TABLE IF NOT EXISTS content_report (
+    id TEXT PRIMARY KEY,
+    reporter_user_id TEXT NOT NULL REFERENCES app_user(id),
+    target_type TEXT NOT NULL CHECK (target_type IN ('lost', 'sighting')),
+    target_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    UNIQUE (reporter_user_id, target_type, target_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lost_pet_region
@@ -127,6 +139,9 @@ class Database:
             feature_columns = {row["name"] for row in connection.execute("PRAGMA table_info(feature)")}
             if "model_version" not in feature_columns:
                 connection.execute("ALTER TABLE feature ADD COLUMN model_version TEXT NOT NULL DEFAULT 'legacy'")
+            user_columns = {row["name"] for row in connection.execute("PRAGMA table_info(app_user)")}
+            if "role" not in user_columns:
+                connection.execute("ALTER TABLE app_user ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
 
     def insert_publication(self, table: str, record: dict, features: Sequence[dict]) -> None:
         self._validate_table(table)
@@ -168,6 +183,35 @@ class Database:
         with self.connect() as connection:
             row = connection.execute(f"SELECT * FROM {table} WHERE id = ?", (record_id,)).fetchone()
         return self._decode_record(row) if row else None
+
+    def replace_publication(self, table: str, record: dict, owner_id: str, features: Sequence[dict]) -> list[str] | None:
+        """Atomically replace editable fields and embeddings; return old feature filenames."""
+        self._validate_table(table)
+        with self.connect() as connection:
+            old = [row["feature_path"] for row in connection.execute(
+                "SELECT feature_path FROM feature WHERE record_type = ? AND record_id = ?",
+                (record["type"], record["id"]),
+            )]
+            changed = connection.execute(
+                f"""UPDATE {table} SET images = ?, description = ?, event_city = ?, event_district = ?,
+                    event_time = ?, event_lat = ?, event_lng = ?
+                    WHERE id = ? AND owner_user_id = ? AND status = 'active'""",
+                (
+                    json.dumps(record["images"], ensure_ascii=False),
+                    json.dumps(record["desc"], ensure_ascii=False),
+                    record["event_city"], record["event_district"], record["event_time"],
+                    record["event_lat"], record["event_lng"], record["id"], owner_id,
+                ),
+            )
+            if changed.rowcount != 1:
+                return None
+            connection.execute("DELETE FROM feature WHERE record_type = ? AND record_id = ?", (record["type"], record["id"]))
+            connection.executemany(
+                """INSERT INTO feature (image_id, image_url, record_type, record_id, feature_path, model_version)
+                   VALUES (:image_id, :image_url, :record_type, :record_id, :feature_path, :model_version)""",
+                features,
+            )
+        return old
 
     def image_is_attached(self, image_url: str) -> bool:
         with self.connect() as connection:
@@ -265,6 +309,18 @@ class Database:
             row = connection.execute("SELECT * FROM app_user WHERE username = ?", (username,)).fetchone()
         return dict(row) if row else None
 
+    def get_user_by_id(self, user_id: str) -> dict | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM app_user WHERE id = ?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+    def set_user_role(self, username: str, role: str) -> bool:
+        if role not in {"user", "admin"}:
+            raise ValueError("非法用户角色")
+        with self.connect() as connection:
+            changed = connection.execute("UPDATE app_user SET role = ? WHERE username = ?", (role, username))
+        return changed.rowcount == 1
+
     def create_session(self, token_hash: str, user_id: str, expires_at: str) -> None:
         with self.connect() as connection:
             connection.execute(
@@ -339,3 +395,30 @@ class Database:
                 (reply, request_id, owner_id, owner_id),
             )
         return cursor.rowcount == 1
+
+    def create_content_report(self, row: dict) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """INSERT INTO content_report
+                   (id, reporter_user_id, target_type, target_id, reason, created_at)
+                   VALUES (:id, :reporter_user_id, :target_type, :target_id, :reason, :created_at)""",
+                row,
+            )
+
+    def list_content_reports(self) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute("SELECT * FROM content_report ORDER BY created_at DESC LIMIT 100").fetchall()
+        return [dict(row) for row in rows]
+
+    def moderate_content_report(self, report_id: str, action: str) -> bool:
+        if action not in {"hide", "dismiss"}:
+            raise ValueError("非法审核动作")
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM content_report WHERE id = ? AND state = 'pending'", (report_id,)).fetchone()
+            if not row:
+                return False
+            connection.execute("UPDATE content_report SET state = ? WHERE id = ?", ("hidden" if action == "hide" else "dismissed", report_id))
+            if action == "hide":
+                table = "lost_pet" if row["target_type"] == "lost" else "sighting"
+                connection.execute(f"UPDATE {table} SET status = 'hidden' WHERE id = ?", (row["target_id"],))
+        return True

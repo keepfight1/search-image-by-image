@@ -5,9 +5,9 @@ from io import BytesIO
 from PIL import Image
 
 
-def image_bytes() -> bytes:
+def image_bytes(color=(230, 120, 30)) -> bytes:
     output = BytesIO()
-    Image.new("RGB", (64, 64), (230, 120, 30)).save(output, format="JPEG")
+    Image.new("RGB", (64, 64), color).save(output, format="JPEG")
     return output.getvalue()
 
 
@@ -19,10 +19,10 @@ def _auth(client, username: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def _upload(client, auth: dict[str, str]) -> str:
+def _upload(client, auth: dict[str, str], color=(230, 120, 30)) -> str:
     response = client.post(
         "/api/v2/images",
-        files={"image": ("cat.jpg", image_bytes(), "image/jpeg")},
+        files={"image": ("cat.jpg", image_bytes(color), "image/jpeg")},
         headers=auth,
     )
     assert response.status_code == 201, response.text
@@ -103,3 +103,49 @@ def test_v2_upload_requires_login(client):
     response = client.post("/api/v2/images", files=files, headers=auth)
     assert response.status_code == 201
     assert response.json()["image_url"].startswith("/uploads/")
+
+
+def test_edit_and_replace_image_keeps_owner_permissions(client, base_payload):
+    finder = _auth(client, "editor_finder")
+    stranger = _auth(client, "editor_stranger")
+    old_image = _upload(client, finder)
+    payload = {**base_payload, "species": "cat", "type": "sighting", "images": [old_image]}
+    created = client.post("/api/v2/reports/sighting", json=payload, headers=finder)
+    assert created.status_code == 201, created.text
+    report_id = created.json()["id"]
+    url = f"/api/v2/reports/sighting/{report_id}"
+    assert client.patch(url, json={"event_district": "新城区"}, headers=stranger).status_code == 403
+    new_image = _upload(client, finder, color=(20, 80, 190))
+    edit = client.patch(url, json={"images": [new_image], "event_district": "新城区"}, headers=finder)
+    assert edit.status_code == 200, edit.text
+    assert edit.json()["images"] == [new_image]
+    assert edit.json()["event_district"] == "新城区"
+    assert "event_lat" not in edit.json()
+    mine = client.get("/api/v2/me/reports", headers=finder).json()["items"][0]
+    assert mine["event_lat"] == base_payload["event_lat"]
+    assert client.patch(url, json={"images": [_upload(client, stranger)]}, headers=finder).status_code == 403
+    assert client.patch(url + "/status", json={"status": "resolved"}, headers=finder).status_code == 200
+    assert client.patch(url, json={"event_district": "再编辑"}, headers=finder).status_code == 409
+
+
+def test_report_and_admin_hide_removes_public_record(client, base_payload):
+    owner = _auth(client, "mod_owner")
+    reporter = _auth(client, "mod_reporter")
+    admin = _auth(client, "mod_admin")
+    assert client.app.state.database.set_user_role("mod_admin", "admin")
+    report = {**base_payload, "type": "sighting", "species": "cat", "images": [_upload(client, owner)]}
+    created = client.post("/api/v2/reports/sighting", json=report, headers=owner)
+    assert created.status_code == 201, created.text
+    target_id = created.json()["id"]
+    url = f"/api/v2/reports/sighting/{target_id}/report"
+    flagged = client.post(url, json={"reason": "这条目击信息使用了虚假的图片和地点"}, headers=reporter)
+    assert flagged.status_code == 201, flagged.text
+    assert client.post(url, json={"reason": "重复举报这条明显虚假的线索"}, headers=reporter).status_code == 409
+    assert client.get("/api/v2/admin/reports", headers=reporter).status_code == 403
+    queue = client.get("/api/v2/admin/reports", headers=admin)
+    assert queue.status_code == 200
+    assert queue.json()["items"][0]["id"] == flagged.json()["id"]
+    reviewed = client.patch(f"/api/v2/admin/reports/{flagged.json()['id']}", json={"action": "hide"}, headers=admin)
+    assert reviewed.status_code == 200
+    assert client.get(f"/api/v2/reports/sighting/{target_id}").status_code == 404
+    assert client.get("/api/v2/reports?type=sighting").json()["items"] == []

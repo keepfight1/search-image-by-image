@@ -108,6 +108,52 @@ class BackendService:
             raise HTTPException(status_code=404, detail="记录不存在")
         return record
 
+    def update_publication(self, record_type: str, record_id: str, payload: PublicationBase, owner_id: str) -> dict:
+        current = self.get_publication(record_type, record_id)
+        if current["owner_user_id"] != owner_id:
+            raise HTTPException(status_code=403, detail="只能编辑自己的线索")
+        if current["status"] != "active":
+            raise HTTPException(status_code=409, detail="已关闭的线索不能编辑")
+        if payload.type != record_type or payload.species != "cat":
+            raise HTTPException(status_code=422, detail="记录类型或物种不匹配")
+        for image_url in payload.images:
+            if not self.database.image_owned_by(image_url, owner_id):
+                raise HTTPException(status_code=403, detail="图片不属于当前用户")
+            if image_url not in current["images"] and self.database.image_is_attached(image_url):
+                raise HTTPException(status_code=409, detail="图片已绑定到其他线索")
+
+        updated = current | payload.model_dump()
+        updated["contact"] = ""
+        new_paths: list[Path] = []
+        features: list[dict] = []
+        try:
+            for image_url in payload.images:
+                image_path = self.resolve_image_url(image_url)
+                try:
+                    vector = self.embedder.extract(image_path)
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+                feature_path = self.settings.feature_dir / f"{record_id}_{image_path.stem}_{uuid4().hex}.npy"
+                np.save(feature_path, vector, allow_pickle=False)
+                new_paths.append(feature_path)
+                features.append({
+                    "image_id": image_path.stem, "image_url": image_url,
+                    "record_type": record_type, "record_id": record_id,
+                    "feature_path": feature_path.name,
+                    "model_version": getattr(self.embedder, "version", self.embedder.name),
+                })
+            table = "lost_pet" if record_type == "lost" else "sighting"
+            old_names = self.database.replace_publication(table, updated, owner_id, features)
+            if old_names is None:
+                raise HTTPException(status_code=409, detail="线索已变更，请刷新后重试")
+        except Exception:
+            for path in new_paths:
+                path.unlink(missing_ok=True)
+            raise
+        for name in old_names:
+            (self.settings.feature_dir / Path(name).name).unlink(missing_ok=True)
+        return updated
+
     def search(self, payload: SearchRequest, *, cross_city: bool = False) -> dict:
         try:
             query_features = np.stack(

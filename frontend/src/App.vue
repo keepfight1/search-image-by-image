@@ -2,7 +2,7 @@
   <div class="shell">
     <header class="topbar">
       <strong class="brand">🐾 寻猫线索</strong>
-      <nav><button v-for="tab in tabs" :key="tab.id" :class="{ active: page === tab.id }" @click="navigate(tab.id)">{{ tab.label }}</button></nav>
+      <nav><button v-for="tab in visibleTabs" :key="tab.id" :class="{ active: page === tab.id }" @click="navigate(tab.id)">{{ tab.label }}</button></nav>
       <button class="link" @click="token ? logout() : (authOpen = true)">{{ token ? `${username} · 退出` : '登录 / 注册' }}</button>
     </header>
     <main>
@@ -10,8 +10,8 @@
       <p v-if="notice" class="notice" role="status">{{ notice }}</p>
 
       <section v-if="page === 'publish'" class="content">
-        <div class="heading"><span>发布线索</span><h2>{{ form.type === 'lost' ? '发布走失猫信息' : '发布发现猫信息' }}</h2><p>填写真实的事发信息。品种、毛色不确定时可以留空。</p></div>
-        <div class="switch"><button :class="{ selected: form.type === 'lost' }" @click="form.type = 'lost'">我丢了猫</button><button :class="{ selected: form.type === 'sighting' }" @click="form.type = 'sighting'">我发现猫</button></div>
+        <div class="heading"><span>{{ editingReport ? '编辑线索' : '发布线索' }}</span><h2>{{ editingReport ? '编辑已发布线索' : form.type === 'lost' ? '发布走失猫信息' : '发布发现猫信息' }}</h2><p>填写真实的事发信息。品种、毛色不确定时可以留空。</p></div>
+        <div v-if="!editingReport" class="switch"><button :class="{ selected: form.type === 'lost' }" @click="form.type = 'lost'">我丢了猫</button><button :class="{ selected: form.type === 'sighting' }" @click="form.type = 'sighting'">我发现猫</button></div>
         <form class="panel" @submit.prevent="publish">
           <div class="grid">
             <label>城市 *<input v-model.trim="form.event_city" required maxlength="100" placeholder="例如：上海" /></label>
@@ -24,16 +24,26 @@
           </div>
           <div class="location"><div><strong>事发地点坐标（选填）</strong><p>只有你就在走失或发现地点时，才使用当前定位。</p></div><button type="button" class="secondary small" @click="useLocation">使用当前位置</button><span v-if="form.event_lat !== null">已定位</span></div>
           <label class="upload">猫的照片 * <small>1–5 张 JPG/PNG，建议包含正脸、侧面和全身。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectFiles" /></label>
+          <div v-if="existingImages.length" class="previews"><div v-for="(src, i) in existingImages" :key="src"><img :src="src" :alt="`已上传照片 ${i + 1}`" /><button type="button" @click="existingImages.splice(i, 1)">×</button></div></div>
           <div v-if="previews.length" class="previews"><div v-for="(src, i) in previews" :key="src"><img :src="src" :alt="`待上传照片 ${i + 1}`" /><button type="button" @click="removeFile(i)">×</button></div></div>
           <p class="tip">公开页面只展示区县和照片；联系通过站内请求进行。</p>
-          <button class="primary submit" :disabled="busy">{{ busy ? '正在发布…' : '发布并查找疑似匹配' }}</button>
+          <button class="primary submit" :disabled="busy">{{ busy ? '正在保存…' : editingReport ? '保存修改并重新匹配' : '发布并查找疑似匹配' }}</button>
         </form>
-        <section v-if="matchesShown" class="results"><div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div><div v-if="!matches.length" class="empty">暂时没有候选；新线索出现后可在“我的发布”中再次查看。</div><div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }}</small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button class="secondary small" @click="contact(item, matchTargetType)">发送联系请求</button></div></article></div></section>
+        <section v-if="matchesShown" class="results"><div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div><div v-if="!matches.length" class="empty">暂时没有候选；新线索出现后可在“我的发布”中再次查看。</div><div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }}</small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button class="secondary small" @click="contact(item, matchTargetType)">发送联系请求</button><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div></section>
       </section>
 
-      <section v-else-if="page === 'browse'" class="content"><div class="heading"><span>公开线索</span><h2>浏览走失与发现信息</h2></div><div class="filters"><select v-model="browseType"><option value="lost">走失猫</option><option value="sighting">发现猫</option></select><input v-model.trim="browseCity" placeholder="城市（选填）" @keyup.enter="loadBrowse" /><button class="secondary small" @click="loadBrowse">筛选</button></div><div v-if="!browseItems.length" class="empty">暂无符合条件的线索。</div><div v-else class="result-grid"><article v-for="item in browseItems" :key="item.id" class="result"><img :src="item.images[0]" alt="猫照片" /><div><small>{{ item.type === 'lost' ? '走失' : '发现' }}</small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.event_city }} · {{ item.event_district }}</p><p>{{ item.event_time }}</p><button class="secondary small" @click="contact(item, item.type)">联系发布者</button></div></article></div></section>
+      <section v-else-if="page === 'browse'" class="content"><div class="heading"><span>公开线索</span><h2>浏览走失与发现信息</h2></div><div class="filters"><select v-model="browseType"><option value="lost">走失猫</option><option value="sighting">发现猫</option></select><input v-model.trim="browseCity" placeholder="城市（选填）" @keyup.enter="loadBrowse" /><button class="secondary small" @click="loadBrowse">筛选</button></div><div v-if="!browseItems.length" class="empty">暂无符合条件的线索。</div><div v-else class="result-grid"><article v-for="item in browseItems" :key="item.id" class="result"><img :src="item.images[0]" alt="猫照片" /><div><small>{{ item.type === 'lost' ? '走失' : '发现' }}</small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.event_city }} · {{ item.event_district }}</p><p>{{ item.event_time }}</p><button class="secondary small" @click="contact(item, item.type)">联系发布者</button><button class="link" @click="flag(item, item.type)">举报</button></div></article></div></section>
 
-      <section v-else-if="page === 'mine'" class="content"><div class="heading"><span>我的线索</span><h2>管理已发布的信息</h2><p>猫已找回或线索失效时请及时关闭。</p></div><div v-if="!token" class="empty">登录后可查看你的发布。</div><div v-else-if="!myItems.length" class="empty">你还没有发布记录。</div><div v-else class="my-list"><article v-for="item in myItems" :key="item.id" class="my-item"><img :src="item.images[0]" alt="猫照片" /><div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }}</strong><p>{{ item.event_time }} · {{ item.status }}</p></div><div class="my-actions"><button v-if="item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div></article></div><section v-if="token" class="inbox"><h2>联系请求</h2><div v-if="!contactItems.length" class="empty">暂无联系请求。</div><article v-for="item in contactItems" :key="item.id" class="message"><p>{{ item.message }}</p><small>{{ item.reply ? `已回复：${item.reply}` : item.direction === 'sent' ? '等待发布者回复' : '待回复' }}</small><div v-if="item.state === 'pending' && item.direction === 'received'"><input v-model="replies[item.id]" placeholder="回复联系请求" /><button class="secondary small" @click="reply(item)">回复</button></div></article></section></section>
+      <section v-else-if="page === 'mine'" class="content"><div class="heading"><span>我的线索</span><h2>管理已发布的信息</h2><p>猫已找回或线索失效时请及时关闭。</p></div><div v-if="!token" class="empty">登录后可查看你的发布。</div><div v-else-if="!myItems.length" class="empty">你还没有发布记录。</div><div v-else class="my-list"><article v-for="item in myItems" :key="item.id" class="my-item"><img :src="item.images[0]" alt="猫照片" /><div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }}</strong><p>{{ item.event_time }} · {{ item.status }}</p></div><div class="my-actions"><button v-if="item.status === 'active'" class="secondary small" @click="startEdit(item)">编辑/补图</button><button v-if="item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div></article></div><section v-if="token" class="inbox"><h2>联系请求</h2><div v-if="!contactItems.length" class="empty">暂无联系请求。</div><article v-for="item in contactItems" :key="item.id" class="message"><p>{{ item.message }}</p><small>{{ item.reply ? `已回复：${item.reply}` : item.direction === 'sent' ? '等待发布者回复' : '待回复' }}</small><div v-if="item.state === 'pending' && item.direction === 'received'"><input v-model="replies[item.id]" placeholder="回复联系请求" /><button class="secondary small" @click="reply(item)">回复</button></div></article></section></section>
+      <section v-else-if="page === 'admin'" class="content">
+        <div class="heading"><span>管理员审核</span><h2>用户举报</h2><p>审核举报并隐藏不适宜或虚假的线索。</p></div>
+        <div v-if="!adminReports.length" class="empty">暂无举报。</div>
+        <article v-for="item in adminReports" :key="item.id" class="message">
+          <strong>{{ item.target_type === 'lost' ? '走失' : '目击' }}线索 {{ item.target_id }}</strong>
+          <p>{{ item.reason }}</p><small>{{ item.created_at }} · {{ item.state }}</small>
+          <div v-if="item.state === 'pending'"><button class="secondary small" @click="moderate(item, 'hide')">隐藏线索</button><button class="secondary small" @click="moderate(item, 'dismiss')">驳回举报</button></div>
+        </article>
+      </section>
       <section v-else class="content demo">
         <div class="heading"><span>研究数据演示</span><h2>50 只猫以图搜图</h2><p>图库来自 Cat Individual Images，只有身份与初步毛色/花纹标签。它们不是平台上的真实走失或目击线索。</p></div>
         <div class="panel">
@@ -47,35 +57,66 @@
     </main>
     <div v-if="authOpen" class="overlay" @click.self="authOpen = false"><form class="dialog" @submit.prevent="authenticate"><button type="button" class="close" @click="authOpen = false">×</button><span class="eyebrow">寻猫线索</span><h2>{{ registerMode ? '创建账号' : '登录账号' }}</h2><label>用户名<input v-model.trim="auth.username" required minlength="3" autocomplete="username" /></label><label>密码<input v-model="auth.password" type="password" required minlength="8" :autocomplete="registerMode ? 'new-password' : 'current-password'" /></label><button class="primary submit" :disabled="busy">{{ registerMode ? '注册并登录' : '登录' }}</button><button type="button" class="link" @click="registerMode = !registerMode">{{ registerMode ? '已有账号？登录' : '没有账号？注册' }}</button></form></div>
     <div v-if="contactTarget" class="overlay" @click.self="contactTarget = null"><form class="dialog" @submit.prevent="sendContact"><button type="button" class="close" @click="contactTarget = null">×</button><span class="eyebrow">安全联系</span><h2>联系线索发布者</h2><p>请说明核对依据，不要在公开页面留下电话号码。</p><textarea v-model.trim="contactMessage" required minlength="5" maxlength="1000" rows="5" placeholder="例如：我家猫左耳有缺口，可以核对另一张照片吗？"></textarea><button class="primary submit" :disabled="busy">发送站内请求</button></form></div>
+    <div v-if="reportTarget" class="overlay" @click.self="reportTarget = null"><form class="dialog" @submit.prevent="sendReport"><button type="button" class="close" @click="reportTarget = null">×</button><span class="eyebrow">内容举报</span><h2>举报这条线索</h2><p>请说明虚假、重复或不适宜内容的具体情况。</p><textarea v-model.trim="reportReason" required minlength="10" maxlength="500" rows="5"></textarea><button class="primary submit" :disabled="busy">提交举报</button></form></div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onUnmounted } from 'vue'
+import { ref, reactive, computed, onUnmounted } from 'vue'
 import axios from 'axios'
 
-const tabs = [{ id: 'publish', label: '发布线索' }, { id: 'browse', label: '浏览信息' }, { id: 'mine', label: '我的发布' }, { id: 'demo', label: '50只猫演示' }]
+const tabs = [{ id: 'publish', label: '发布线索' }, { id: 'browse', label: '浏览信息' }, { id: 'mine', label: '我的发布' }, { id: 'demo', label: '50只猫演示' }, { id: 'admin', label: '审核' }]
 const page = ref('publish'), notice = ref(''), busy = ref(false)
 const token = ref(localStorage.getItem('cat_token') || ''), username = ref(localStorage.getItem('cat_user') || '')
+const role = ref(localStorage.getItem('cat_role') || 'user'), visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'admin' || role.value === 'admin'))
 const authOpen = ref(false), registerMode = ref(false), auth = reactive({ username: '', password: '' })
 const form = reactive({ type: 'lost', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, desc: { coat_color: '', pattern: '', size: '', breed: '' } })
-const files = ref([]), previews = ref([]), matches = ref([]), matchesShown = ref(false), matchTargetType = ref('sighting'), searchScope = ref('same_city'), activeReport = ref(null)
+const files = ref([]), previews = ref([]), existingImages = ref([]), editingReport = ref(null), matches = ref([]), matchesShown = ref(false), matchTargetType = ref('sighting'), searchScope = ref('same_city'), activeReport = ref(null)
 const browseType = ref('lost'), browseCity = ref(''), browseItems = ref([]), myItems = ref([]), contactItems = ref([])
 const contactTarget = ref(null), contactType = ref(''), contactMessage = ref(''), replies = reactive({})
 const demoFile = ref(null), demoResults = ref([]), demoAvailable = ref(false)
+const reportTarget = ref(null), reportType = ref(''), reportReason = ref(''), adminReports = ref([])
 const headers = () => ({ Authorization: `Bearer ${token.value}` })
 const errorText = e => { const detail = e.response?.data?.detail; return typeof detail === 'string' ? detail : e.message || '请求失败' }
-function choose(type) { form.type = type; page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
-function logout() { token.value = ''; username.value = ''; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); notice.value = '已退出登录' }
-async function authenticate() { busy.value = true; try { if (registerMode.value) await axios.post('/api/v2/auth/register', auth); const { data } = await axios.post('/api/v2/auth/login', auth); token.value = data.access_token; username.value = auth.username; localStorage.setItem('cat_token', token.value); localStorage.setItem('cat_user', username.value); auth.password = ''; authOpen.value = false; notice.value = '登录成功' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
-function selectFiles(e) { const next = Array.from(e.target.files || []); if (next.length > 5 || next.some(f => !['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024)) { notice.value = '最多 5 张 JPG/PNG，每张不超过 5MB'; e.target.value = ''; return } previews.value.forEach(URL.revokeObjectURL); files.value = next; previews.value = next.map(URL.createObjectURL) }
+function choose(type) { editingReport.value = null; existingImages.value = []; previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []; Object.assign(form, { type, event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, desc: { coat_color: '', pattern: '', size: '', breed: '' } }); matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
+function startEdit(item) { editingReport.value = { type: item.type, id: item.id }; existingImages.value = [...item.images]; previews.value.forEach(URL.revokeObjectURL); files.value = []; previews.value = []; form.type = item.type; form.event_city = item.event_city; form.event_district = item.event_district; form.event_time = item.event_time.replace(' ', 'T'); form.event_lat = item.event_lat ?? null; form.event_lng = item.event_lng ?? null; form.desc = { ...item.desc }; matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 280, behavior: 'smooth' }) }
+function logout() { token.value = ''; username.value = ''; role.value = 'user'; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); localStorage.removeItem('cat_role'); page.value = 'publish'; notice.value = '已退出登录' }
+async function authenticate() { busy.value = true; try { if (registerMode.value) await axios.post('/api/v2/auth/register', auth); const { data } = await axios.post('/api/v2/auth/login', auth); token.value = data.access_token; username.value = auth.username; role.value = data.role || 'user'; localStorage.setItem('cat_token', token.value); localStorage.setItem('cat_user', username.value); localStorage.setItem('cat_role', role.value); auth.password = ''; authOpen.value = false; notice.value = '登录成功' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
+function selectFiles(e) { const next = Array.from(e.target.files || []); if (next.length + existingImages.value.length > 5 || next.some(f => !['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024)) { notice.value = '每条线索最多 5 张 JPG/PNG，每张不超过 5MB'; e.target.value = ''; return } previews.value.forEach(URL.revokeObjectURL); files.value = next; previews.value = next.map(URL.createObjectURL) }
 function removeFile(i) { URL.revokeObjectURL(previews.value[i]); files.value.splice(i, 1); previews.value.splice(i, 1) }
 onUnmounted(() => previews.value.forEach(URL.revokeObjectURL))
 function useLocation() { if (!navigator.geolocation) { notice.value = '浏览器不支持定位'; return } navigator.geolocation.getCurrentPosition(p => { form.event_lat = p.coords.latitude; form.event_lng = p.coords.longitude; notice.value = '已填入当前位置，请确认这里就是事发地点' }, () => { notice.value = '定位失败，可只填城市和区县' }, { timeout: 10000 }) }
-async function publish() { if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return } if (!files.value.length) { notice.value = '请至少上传一张照片'; return } busy.value = true; matchesShown.value = false; try { const images = []; for (const file of files.value) { const body = new FormData(); body.append('image', file); const { data } = await axios.post('/api/v2/images', body, { headers: headers() }); images.push(data.image_url) } const payload = { species: 'cat', type: form.type, images, desc: { ...form.desc }, event_city: form.event_city, event_district: form.event_district, event_time: form.event_time.replace('T', ' '), event_lat: form.event_lat, event_lng: form.event_lng, contact: '' }; const created = await axios.post(`/api/v2/reports/${form.type}`, payload, { headers: headers() }); activeReport.value = { type: form.type, id: created.data.id }; const result = await axios.get(`/api/v2/reports/${form.type}/${created.data.id}/matches`, { headers: headers() }); matches.value = result.data.results || []; searchScope.value = result.data.scope || 'same_city'; matchTargetType.value = form.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true; notice.value = '已发布。请进一步核实疑似匹配。' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
-async function navigate(target) { page.value = target; if (target === 'browse') await loadBrowse(); if (target === 'mine') await loadMine(); if (target === 'demo') await loadDemoStatus() }
+async function publish() {
+  if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return }
+  if (!files.value.length && !existingImages.value.length) { notice.value = '请至少保留一张照片'; return }
+  busy.value = true; matchesShown.value = false
+  try {
+    const images = [...existingImages.value]
+    for (const file of files.value) {
+      const body = new FormData(); body.append('image', file)
+      const { data } = await axios.post('/api/v2/images', body, { headers: headers() })
+      images.push(data.image_url)
+    }
+    const payload = { species: 'cat', type: form.type, images, desc: { ...form.desc }, event_city: form.event_city, event_district: form.event_district, event_time: form.event_time.replace('T', ' '), event_lat: form.event_lat, event_lng: form.event_lng }
+    const wasEditing = !!editingReport.value
+    const id = wasEditing ? editingReport.value.id : (await axios.post(`/api/v2/reports/${form.type}`, payload, { headers: headers() })).data.id
+    if (wasEditing) await axios.patch(`/api/v2/reports/${form.type}/${id}`, payload, { headers: headers() })
+    activeReport.value = { type: form.type, id }
+    const { data } = await axios.get(`/api/v2/reports/${form.type}/${id}/matches`, { headers: headers() })
+    matches.value = data.results || []; searchScope.value = data.scope || 'same_city'
+    matchTargetType.value = form.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true
+    editingReport.value = null; existingImages.value = []
+    previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []
+    notice.value = wasEditing ? '线索已更新并重新匹配' : '已发布。请进一步核实疑似匹配。'
+  } catch (e) { notice.value = errorText(e) } finally { busy.value = false }
+}
+async function navigate(target) { page.value = target; if (target === 'browse') await loadBrowse(); if (target === 'mine') await loadMine(); if (target === 'demo') await loadDemoStatus(); if (target === 'admin') await loadAdminReports() }
 async function loadDemoStatus() { try { const { data } = await axios.get('/api/v2/demo/status'); demoAvailable.value = data.available } catch (e) { notice.value = errorText(e) } }
 async function searchDemo() { if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return } if (!demoFile.value) return; busy.value = true; try { const body = new FormData(); body.append('image', demoFile.value); const uploaded = await axios.post('/api/v2/images', body, { headers: headers() }); const { data } = await axios.post('/api/v2/demo/search', { image_url: uploaded.data.image_url }, { headers: headers() }); demoResults.value = data.results || []; notice.value = '研究图库检索完成，请结合图片人工核对' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
+function flag(item, type) { if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return } reportTarget.value = item; reportType.value = type; reportReason.value = '' }
+async function sendReport() { busy.value = true; try { await axios.post(`/api/v2/reports/${reportType.value}/${reportTarget.value.id}/report`, { reason: reportReason.value }, { headers: headers() }); reportTarget.value = null; notice.value = '举报已提交，等待管理员审核' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
+async function loadAdminReports() { if (role.value !== 'admin') return; try { const { data } = await axios.get('/api/v2/admin/reports', { headers: headers() }); adminReports.value = data.items || [] } catch (e) { notice.value = errorText(e) } }
+async function moderate(item, action) { try { const { data } = await axios.patch(`/api/v2/admin/reports/${item.id}`, { action }, { headers: headers() }); item.state = data.state; notice.value = action === 'hide' ? '线索已隐藏' : '举报已驳回' } catch (e) { notice.value = errorText(e) } }
 async function loadBrowse() { try { const { data } = await axios.get('/api/v2/reports', { params: { type: browseType.value, city: browseCity.value || undefined } }); browseItems.value = data.items } catch (e) { notice.value = errorText(e) } }
 async function loadMine() { if (!token.value) return; try { const [reports, requests] = await Promise.all([axios.get('/api/v2/me/reports', { headers: headers() }), axios.get('/api/v2/me/contact-requests', { headers: headers() })]); myItems.value = reports.data.items; contactItems.value = requests.data.items } catch (e) { notice.value = errorText(e) } }
 async function viewMatches(item) { try { const { data } = await axios.get(`/api/v2/reports/${item.type}/${item.id}/matches`, { headers: headers() }); activeReport.value = { type: item.type, id: item.id }; matches.value = data.results || []; searchScope.value = data.scope || 'same_city'; matchTargetType.value = item.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true; page.value = 'publish'; window.scrollTo({ top: 650, behavior: 'smooth' }) } catch (e) { notice.value = errorText(e) } }

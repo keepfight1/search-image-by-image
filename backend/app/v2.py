@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from .config import PROJECT_ROOT
 from .database import Database
-from .schemas import LostPetCreate, SearchRequest, SightingCreate
+from .schemas import Description, LostPetCreate, SearchRequest, SightingCreate
 from .services import BackendService
 
 
@@ -64,11 +64,33 @@ class DemoSearch(BaseModel):
     image_url: str
 
 
+class ReportPatch(BaseModel):
+    images: list[str] | None = None
+    desc: Description | None = None
+    event_city: str | None = Field(default=None, max_length=100)
+    event_district: str | None = Field(default=None, max_length=100)
+    event_time: str | None = None
+    event_lat: float | None = None
+    event_lng: float | None = None
+
+
+class AbuseReport(BaseModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+class ModerationDecision(BaseModel):
+    action: str = Field(pattern=r"^(hide|dismiss)$")
+
+
 def _public(record: dict) -> dict:
     return {
         key: value for key, value in record.items()
         if key not in {"contact", "owner_user_id", "event_lat", "event_lng"}
     }
+
+
+def _owner_view(record: dict) -> dict:
+    return {key: value for key, value in record.items() if key not in {"contact", "owner_user_id"}}
 
 
 def build_router(service: BackendService, database: Database) -> APIRouter:
@@ -91,6 +113,13 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             raise HTTPException(status_code=401, detail="登录已失效")
         return user_id
 
+    def admin_user(authorization: str | None = Header(default=None)) -> str:
+        user_id = current_user(authorization)
+        user = database.get_user_by_id(user_id)
+        if not user or user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="需要管理员权限")
+        return user_id
+
     @router.post("/auth/register", status_code=201)
     def register(payload: Credentials) -> dict:
         user_id = uuid4().hex
@@ -108,7 +137,8 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         token = secrets.token_urlsafe(32)
         expires = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         database.create_session(hashlib.sha256(token.encode()).hexdigest(), user["id"], expires)
-        return {"access_token": token, "token_type": "bearer", "expires_at": expires, "user_id": user["id"]}
+        return {"access_token": token, "token_type": "bearer", "expires_at": expires,
+                "user_id": user["id"], "role": user["role"]}
 
     @router.post("/images", status_code=201)
     async def upload_image(image: UploadFile = File(...), user_id: str = Depends(current_user)) -> dict:
@@ -130,7 +160,11 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             if gallery["model_version"].item() != version:
                 raise HTTPException(status_code=409, detail="图库模型版本与服务不一致，请重建图库")
             vectors = gallery["vectors"].astype(np.float32)
-            scores = vectors @ service.embedder.extract(service.resolve_image_url(payload.image_url)).astype(np.float32)
+            try:
+                query_vector = service.embedder.extract(service.resolve_image_url(payload.image_url)).astype(np.float32)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            scores = vectors @ query_vector
             by_cat: dict[str, dict] = {}
             for index, raw_id in enumerate(gallery["cat_ids"]):
                 cat_id = str(raw_id)
@@ -200,7 +234,26 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
     def my_reports(user_id: str = Depends(current_user)) -> dict:
         rows = database.list_publications("lost_pet", owner_id=user_id)
         rows += database.list_publications("sighting", owner_id=user_id)
-        return {"items": [_public(row) for row in sorted(rows, key=lambda row: row["created_at"], reverse=True)]}
+        return {"items": [_owner_view(row) for row in sorted(rows, key=lambda row: row["created_at"], reverse=True)]}
+
+    @router.patch("/reports/{report_type}/{report_id}")
+    def edit_report(report_type: str, report_id: str, patch: ReportPatch, user_id: str = Depends(current_user)) -> dict:
+        if report_type not in {"lost", "sighting"}:
+            raise HTTPException(status_code=422, detail="无效记录类型")
+        current = service.get_publication(report_type, report_id)
+        if current["owner_user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="只能编辑自己的线索")
+        if not patch.model_fields_set:
+            return _public(current)
+        merged = {
+            key: current[key]
+            for key in ("species", "type", "images", "desc", "event_city", "event_district", "event_time", "event_lat", "event_lng")
+        } | patch.model_dump(exclude_unset=True)
+        model = LostPetCreate if report_type == "lost" else SightingCreate
+        valid = model.model_validate(merged)
+        if len(valid.images) > 5:
+            raise HTTPException(status_code=422, detail="每条线索最多上传 5 张图片")
+        return _public(service.update_publication(report_type, report_id, valid, user_id))
 
     @router.patch("/reports/{report_type}/{report_id}/status")
     def update_status(report_type: str, report_id: str, payload: StatusPatch, user_id: str = Depends(current_user)) -> dict:
@@ -256,5 +309,32 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         if not database.reply_contact_request(request_id, user_id, payload.reply):
             raise HTTPException(status_code=404, detail="无权限或请求不存在")
         return {"state": "replied"}
+
+    @router.post("/reports/{report_type}/{report_id}/report", status_code=201)
+    def report_content(report_type: str, report_id: str, payload: AbuseReport,
+                       user_id: str = Depends(current_user)) -> dict:
+        if report_type not in {"lost", "sighting"}:
+            raise HTTPException(status_code=422, detail="无效记录类型")
+        target = service.get_publication(report_type, report_id)
+        if target["status"] != "active":
+            raise HTTPException(status_code=404, detail="线索不可举报")
+        row = {"id": uuid4().hex, "reporter_user_id": user_id, "target_type": report_type,
+               "target_id": report_id, "reason": payload.reason, "created_at": _now()}
+        try:
+            database.create_content_report(row)
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="已举报该线索") from exc
+        return {"id": row["id"], "state": "pending"}
+
+    @router.get("/admin/reports")
+    def admin_reports(_admin: str = Depends(admin_user)) -> dict:
+        return {"items": database.list_content_reports()}
+
+    @router.patch("/admin/reports/{report_id}")
+    def review_report(report_id: str, payload: ModerationDecision,
+                      _admin: str = Depends(admin_user)) -> dict:
+        if not database.moderate_content_report(report_id, payload.action):
+            raise HTTPException(status_code=404, detail="待审核举报不存在")
+        return {"state": "hidden" if payload.action == "hide" else "dismissed"}
 
     return router
