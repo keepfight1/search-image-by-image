@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, UploadFile, status
@@ -19,6 +20,7 @@ from .schemas import (
     UploadResponse,
 )
 from .services import BackendService
+from .v2 import build_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -41,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = resolved_settings
     app.state.database = database
     app.state.service = service
+    app.include_router(build_router(service, database))
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(resolved_settings.cors_origins),
@@ -54,33 +57,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def health() -> dict:
         return {"status": "ok", "embedding_provider": embedder.name}
 
-    @app.post("/api/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
-    async def upload_image(image: UploadFile = File(...)) -> dict:
-        return {"image_url": await service.save_upload(image)}
+    if os.getenv("BACKEND_ENABLE_LEGACY", "1") == "1":
+        @app.post("/api/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+        async def upload_image(image: UploadFile = File(...)) -> dict:
+            return {"image_url": await service.save_upload(image)}
 
-    @app.post("/api/pets", response_model=PublicationResponse, status_code=status.HTTP_201_CREATED)
-    def create_lost_pet(payload: LostPetCreate) -> dict:
-        return service.create_publication(payload)
+        @app.post("/api/pets", response_model=PublicationResponse, status_code=status.HTTP_201_CREATED)
+        def create_lost_pet(payload: LostPetCreate) -> dict:
+            return service.create_publication(payload)
 
-    @app.post(
-        "/api/sightings",
-        response_model=PublicationResponse,
-        status_code=status.HTTP_201_CREATED,
-    )
-    def create_sighting(payload: SightingCreate) -> dict:
-        return service.create_publication(payload)
+        @app.post(
+            "/api/sightings",
+            response_model=PublicationResponse,
+            status_code=status.HTTP_201_CREATED,
+        )
+        def create_sighting(payload: SightingCreate) -> dict:
+            return service.create_publication(payload)
 
-    @app.post("/api/search", response_model=SearchResponse, response_model_exclude_none=True)
-    def search(payload: SearchRequest) -> dict:
-        return service.search(payload)
+        @app.post("/api/search", response_model=SearchResponse, response_model_exclude_none=True)
+        def search(payload: SearchRequest) -> dict:
+            return service.search(payload)
 
-    @app.get("/api/pets/{record_id}", response_model=PublicationResponse)
-    def get_lost_pet(record_id: str) -> dict:
-        return service.get_publication("lost", record_id)
+        @app.get("/api/pets/{record_id}", response_model=PublicationResponse)
+        def get_lost_pet(record_id: str) -> dict:
+            return service.get_publication("lost", record_id)
 
-    @app.get("/api/sightings/{record_id}", response_model=PublicationResponse)
-    def get_sighting(record_id: str) -> dict:
-        return service.get_publication("sighting", record_id)
+        @app.get("/api/sightings/{record_id}", response_model=PublicationResponse)
+        def get_sighting(record_id: str) -> dict:
+            return service.get_publication("sighting", record_id)
 
     return app
 

@@ -1,3 +1,12 @@
 .tmp-*/
 *.py[cod]
 __pycache__/
+/.venv/
+/dataset_cat50/
+/data/
+/backend/data/
+/frontend/node_modules/
+/frontend/dist/
+/algorithm/weights/*.pt
+/algorithm/weights/*.onnx
+/models/

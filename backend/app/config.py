@@ -24,7 +24,9 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         data_dir = Path(os.getenv("BACKEND_DATA_DIR", BACKEND_DIR / "data")).resolve()
-        threshold_text = os.getenv("BACKEND_THRESHOLDS", '{"cat": 0.72, "dog": 0.68}')
+        provider = os.getenv("BACKEND_EMBEDDING_PROVIDER", "lightweight").strip().lower()
+        default_thresholds = '{"cat": 0.45, "dog": 0.68}' if provider == "onnx" else '{"cat": 0.72, "dog": 0.68}'
+        threshold_text = os.getenv("BACKEND_THRESHOLDS", default_thresholds)
         thresholds = json.loads(threshold_text)
         if set(thresholds) != {"cat", "dog"}:
             raise ValueError("BACKEND_THRESHOLDS 必须同时包含 cat 和 dog")
@@ -45,7 +47,7 @@ class Settings:
             upload_dir=Path(os.getenv("BACKEND_UPLOAD_DIR", data_dir / "uploads")).resolve(),
             feature_dir=Path(os.getenv("BACKEND_FEATURE_DIR", data_dir / "features")).resolve(),
             max_upload_bytes=max_upload_bytes,
-            embedding_provider=os.getenv("BACKEND_EMBEDDING_PROVIDER", "lightweight").strip().lower(),
+            embedding_provider=provider,
             thresholds=normalized_thresholds,
             cors_origins=cors_origins,
         )

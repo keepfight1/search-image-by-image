@@ -1,7 +1,9 @@
 .git
-.tmp-*
-**/.venv
-**/__pycache__
-**/.pytest_cache
-**/.pytest-tmp*
+.venv
+archive
+dataset_cat50
 backend/data
+frontend/node_modules
+frontend/dist
+models
+*.pyc

@@ -71,6 +71,7 @@ class SightingCreate(PublicationBase):
 
 
 class SearchRequest(LocationFields):
+    event_district: str = Field(default="", max_length=100)
     species: Species
     type: RecordType
     images: list[str] = Field(min_length=1, max_length=8)
@@ -94,6 +95,8 @@ class PublicationResponse(PublicationBase):
     id: str
     type: RecordType
     created_at: str
+    owner_user_id: str | None = None
+    status: Literal["active", "resolved", "withdrawn", "hidden"] = "active"
 
 
 class SearchResult(BaseModel):
@@ -106,9 +109,11 @@ class SearchResult(BaseModel):
     desc: Description
     event_time: str
     district: str
+    city: str | None = None
     distance: float | None = None
     score: float
-    contact: str
+    rank_score: float
+    reasons: list[str] = Field(default_factory=list)
 
 
 class SearchResponse(BaseModel):

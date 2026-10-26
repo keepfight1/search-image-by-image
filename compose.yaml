@@ -4,10 +4,23 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      BACKEND_CORS_ORIGINS: http://localhost:5173
-      BACKEND_EMBEDDING_PROVIDER: lightweight
+      BACKEND_CORS_ORIGINS: http://localhost:8080
+      BACKEND_EMBEDDING_PROVIDER: onnx
+      BACKEND_ENABLE_LEGACY: "0"
+      BACKEND_THRESHOLDS: '{"cat": 0.45, "dog": 0.68}'
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/data:/app/data
+      - ./models:/app/models:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
     restart: unless-stopped

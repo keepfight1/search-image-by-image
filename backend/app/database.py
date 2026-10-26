@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS lost_pet (
     event_lat REAL,
     event_lng REAL,
     contact TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    owner_user_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active'
 );
 
 CREATE TABLE IF NOT EXISTS sighting (
@@ -37,7 +39,9 @@ CREATE TABLE IF NOT EXISTS sighting (
     event_lat REAL,
     event_lng REAL,
     contact TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    owner_user_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active'
 );
 
 CREATE TABLE IF NOT EXISTS feature (
@@ -45,7 +49,39 @@ CREATE TABLE IF NOT EXISTS feature (
     image_url TEXT NOT NULL UNIQUE,
     record_type TEXT NOT NULL CHECK (record_type IN ('lost', 'sighting')),
     record_id TEXT NOT NULL,
-    feature_path TEXT NOT NULL UNIQUE
+    feature_path TEXT NOT NULL UNIQUE,
+    model_version TEXT NOT NULL DEFAULT 'legacy'
+);
+
+CREATE TABLE IF NOT EXISTS app_user (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_session (
+    token_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES app_user(id),
+    expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS image_upload (
+    image_url TEXT PRIMARY KEY,
+    owner_user_id TEXT REFERENCES app_user(id),
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS contact_request (
+    id TEXT PRIMARY KEY,
+    requester_user_id TEXT NOT NULL REFERENCES app_user(id),
+    target_type TEXT NOT NULL CHECK (target_type IN ('lost', 'sighting')),
+    target_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    reply TEXT,
+    state TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    UNIQUE (requester_user_id, target_type, target_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_lost_pet_region
@@ -82,6 +118,15 @@ class Database:
         with self.connect() as connection:
             connection.execute("PRAGMA journal_mode = WAL")
             connection.executescript(SCHEMA)
+            for table in ("lost_pet", "sighting"):
+                columns = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+                if "owner_user_id" not in columns:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN owner_user_id TEXT")
+                if "status" not in columns:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+            feature_columns = {row["name"] for row in connection.execute("PRAGMA table_info(feature)")}
+            if "model_version" not in feature_columns:
+                connection.execute("ALTER TABLE feature ADD COLUMN model_version TEXT NOT NULL DEFAULT 'legacy'")
 
     def insert_publication(self, table: str, record: dict, features: Sequence[dict]) -> None:
         self._validate_table(table)
@@ -90,8 +135,8 @@ class Database:
                 f"""
                 INSERT INTO {table} (
                     id, species, type, images, description, event_city, event_district,
-                    event_time, event_lat, event_lng, contact, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    event_time, event_lat, event_lng, contact, created_at, owner_user_id, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record["id"],
@@ -106,12 +151,14 @@ class Database:
                     record["event_lng"],
                     record["contact"],
                     record["created_at"],
+                    record.get("owner_user_id"),
+                    record.get("status", "active"),
                 ),
             )
             connection.executemany(
                 """
-                INSERT INTO feature (image_id, image_url, record_type, record_id, feature_path)
-                VALUES (:image_id, :image_url, :record_type, :record_id, :feature_path)
+                INSERT INTO feature (image_id, image_url, record_type, record_id, feature_path, model_version)
+                VALUES (:image_id, :image_url, :record_type, :record_id, :feature_path, :model_version)
                 """,
                 features,
             )
@@ -130,22 +177,42 @@ class Database:
             ).fetchone()
         return row is not None
 
+    def register_upload(self, image_url: str, owner_user_id: str | None, created_at: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO image_upload (image_url, owner_user_id, created_at) VALUES (?, ?, ?)",
+                (image_url, owner_user_id, created_at),
+            )
+
+    def image_owned_by(self, image_url: str, owner_user_id: str) -> bool:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM image_upload WHERE image_url = ? AND owner_user_id = ?",
+                (image_url, owner_user_id),
+            ).fetchone()
+        return row is not None
+
     def find_candidates(
         self,
         table: str,
         *,
         species: str,
-        city: str,
+        city: str | None,
         district: str | None = None,
+        model_version: str = "legacy",
     ) -> list[dict]:
         self._validate_table(table)
         query = f"""
             SELECT r.*, f.image_id, f.image_url, f.feature_path
             FROM {table} AS r
             INNER JOIN feature AS f ON f.record_id = r.id AND f.record_type = r.type
-            WHERE r.species = ? AND r.event_city = ?
+            WHERE r.species = ? AND r.status = 'active'
+              AND f.model_version = ?
         """
-        parameters: list[str] = [species, city]
+        parameters: list[str] = [species, model_version]
+        if city:
+            query += " AND r.event_city = ?"
+            parameters.append(city)
         if district is not None:
             query += " AND r.event_district = ?"
             parameters.append(district)
@@ -182,4 +249,93 @@ class Database:
             "event_lng": row["event_lng"],
             "contact": row["contact"],
             "created_at": row["created_at"],
+            "owner_user_id": row["owner_user_id"],
+            "status": row["status"],
         }
+
+    def create_user(self, user_id: str, username: str, password_hash: str, created_at: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO app_user (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                (user_id, username, password_hash, created_at),
+            )
+
+    def get_user(self, username: str) -> dict | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM app_user WHERE username = ?", (username,)).fetchone()
+        return dict(row) if row else None
+
+    def create_session(self, token_hash: str, user_id: str, expires_at: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO app_session (token_hash, user_id, expires_at) VALUES (?, ?, ?)",
+                (token_hash, user_id, expires_at),
+            )
+
+    def get_session_user(self, token_hash: str, now: str) -> str | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT user_id FROM app_session WHERE token_hash = ? AND expires_at > ?",
+                (token_hash, now),
+            ).fetchone()
+        return row["user_id"] if row else None
+
+    def list_publications(self, table: str, *, owner_id: str | None = None, city: str | None = None, limit: int = 50) -> list[dict]:
+        self._validate_table(table)
+        conditions = []
+        params: list[object] = []
+        if owner_id is not None:
+            conditions.append("owner_user_id = ?")
+            params.append(owner_id)
+        else:
+            conditions.append("status = 'active'")
+        if city:
+            conditions.append("event_city = ?")
+            params.append(city)
+        where = " WHERE " + " AND ".join(conditions)
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"SELECT * FROM {table}{where} ORDER BY created_at DESC LIMIT ?", (*params, limit)
+            ).fetchall()
+        return [self._decode_record(row) for row in rows]
+
+    def set_publication_status(self, table: str, record_id: str, owner_id: str, new_status: str) -> bool:
+        self._validate_table(table)
+        with self.connect() as connection:
+            cursor = connection.execute(
+                f"UPDATE {table} SET status = ? WHERE id = ? AND owner_user_id = ?",
+                (new_status, record_id, owner_id),
+            )
+        return cursor.rowcount == 1
+
+    def create_contact_request(self, row: dict) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO contact_request (id, requester_user_id, target_type, target_id, message, created_at) "
+                "VALUES (:id, :requester_user_id, :target_type, :target_id, :message, :created_at)",
+                row,
+            )
+
+    def list_contact_requests(self, owner_id: str) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT c.* FROM contact_request c
+                   LEFT JOIN lost_pet l ON c.target_type = 'lost' AND c.target_id = l.id
+                   LEFT JOIN sighting s ON c.target_type = 'sighting' AND c.target_id = s.id
+                   WHERE c.requester_user_id = ? OR l.owner_user_id = ? OR s.owner_user_id = ?
+                   ORDER BY c.created_at DESC""",
+                (owner_id, owner_id, owner_id),
+            ).fetchall()
+        return [dict(row) | {"direction": "sent" if row["requester_user_id"] == owner_id else "received"} for row in rows]
+
+    def reply_contact_request(self, request_id: str, owner_id: str, reply: str) -> bool:
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """UPDATE contact_request SET reply = ?, state = 'replied'
+                   WHERE id = ? AND (
+                     (target_type = 'lost' AND EXISTS (SELECT 1 FROM lost_pet WHERE id = target_id AND owner_user_id = ?))
+                     OR (target_type = 'sighting' AND EXISTS (SELECT 1 FROM sighting WHERE id = target_id AND owner_user_id = ?))
+                   )""",
+                (reply, request_id, owner_id, owner_id),
+            )
+        return cursor.rowcount == 1
