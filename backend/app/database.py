@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS lost_pet (
     contact TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     owner_user_id TEXT,
-    status TEXT NOT NULL DEFAULT 'active'
+    status TEXT NOT NULL DEFAULT 'active',
+    source_type TEXT NOT NULL DEFAULT 'user',
+    source_cat_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS sighting (
@@ -41,7 +43,9 @@ CREATE TABLE IF NOT EXISTS sighting (
     contact TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     owner_user_id TEXT,
-    status TEXT NOT NULL DEFAULT 'active'
+    status TEXT NOT NULL DEFAULT 'active',
+    source_type TEXT NOT NULL DEFAULT 'user',
+    source_cat_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS feature (
@@ -161,6 +165,10 @@ class Database:
                     connection.execute(f"ALTER TABLE {table} ADD COLUMN owner_user_id TEXT")
                 if "status" not in columns:
                     connection.execute(f"ALTER TABLE {table} ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+                if "source_type" not in columns:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN source_type TEXT NOT NULL DEFAULT 'user'")
+                if "source_cat_id" not in columns:
+                    connection.execute(f"ALTER TABLE {table} ADD COLUMN source_cat_id TEXT")
             feature_columns = {row["name"] for row in connection.execute("PRAGMA table_info(feature)")}
             if "model_version" not in feature_columns:
                 connection.execute("ALTER TABLE feature ADD COLUMN model_version TEXT NOT NULL DEFAULT 'legacy'")
@@ -320,6 +328,8 @@ class Database:
             "created_at": row["created_at"],
             "owner_user_id": row["owner_user_id"],
             "status": row["status"],
+            "source_type": row["source_type"],
+            "source_cat_id": row["source_cat_id"],
         }
 
     def create_user(self, user_id: str, username: str, password_hash: str, created_at: str) -> None:
@@ -390,6 +400,23 @@ class Database:
                 rows = connection.execute(f"SELECT * FROM {table} WHERE status = 'active' ORDER BY created_at DESC").fetchall()
                 records.extend(self._decode_record(row) for row in rows)
         return sorted(records, key=lambda item: item["created_at"], reverse=True)
+
+    def admin_list_publications(self) -> list[dict]:
+        records: list[dict] = []
+        with self.connect() as connection:
+            for table in ("lost_pet", "sighting"):
+                records.extend(self._decode_record(row) for row in connection.execute(f"SELECT * FROM {table}"))
+        return sorted(records, key=lambda item: item["created_at"], reverse=True)
+
+    def admin_delete_publication(self, table: str, record_id: str) -> bool:
+        """Soft delete a report so it disappears from browsing and matching."""
+        self._validate_table(table)
+        with self.connect() as connection:
+            result = connection.execute(
+                f"UPDATE {table} SET status = 'deleted' WHERE id = ? AND status != 'deleted'",
+                (record_id,),
+            )
+        return result.rowcount == 1
 
     def import_cat_dataset(self, identities: Sequence[dict], images: Sequence[dict]) -> None:
         ids = [item["id"] for item in identities]

@@ -164,12 +164,35 @@ def test_browse_defaults_to_all_and_supports_more_filters(client, base_payload):
     assert client.post("/api/v2/reports/lost", json=report, headers=owner).status_code == 201
 
     all_items = client.get("/api/v2/browse").json()
-    assert all_items["total"] == 3
-    assert {item["type"] for item in all_items["items"]} == {"lost", "dataset"}
+    assert all_items["total"] == 1
+    assert {item["type"] for item in all_items["items"]} == {"lost"}
     assert all("contact" not in item for item in all_items["items"])
     assert next(item for item in all_items["items"] if item["type"] == "lost")["has_phone"] is True
-    assert client.get("/api/v2/browse?type=dataset&coat_color=黑").json()["total"] == 1
+    assert client.get("/api/v2/browse?type=dataset&coat_color=黑").status_code == 422
     assert client.get("/api/v2/browse?city=上海").json()["total"] == 1
     assert client.get("/api/v2/browse?since=2026-05-02").json()["total"] == 0
-    page = client.get("/api/v2/browse?limit=1&offset=1").json()
-    assert len(page["items"]) == 1 and page["has_more"] is True
+    page = client.get("/api/v2/browse?limit=1&offset=0").json()
+    assert len(page["items"]) == 1 and page["has_more"] is False
+
+
+def test_admin_can_delete_publication_and_remove_it_from_search(client, base_payload):
+    owner = _auth(client, "delete_owner")
+    admin = _auth(client, "delete_admin")
+    assert client.app.state.database.set_user_role("delete_admin", "admin")
+    image = _upload(client, owner)
+    payload = {**base_payload, "type": "lost", "images": [image], "contact": "13800138007"}
+    created = client.post("/api/v2/reports/lost", json=payload, headers=owner)
+    assert created.status_code == 201
+    report_id = created.json()["id"]
+    url = f"/api/v2/admin/publications/lost/{report_id}"
+    assert client.get("/api/v2/admin/publications", headers=owner).status_code == 403
+    assert client.delete(url, headers=owner).status_code == 403
+    assert client.get("/api/v2/admin/publications", headers=admin).json()["items"][0]["id"] == report_id
+    assert client.delete(url, headers=admin).json() == {"status": "deleted"}
+    assert client.delete(url, headers=admin).status_code == 404
+    assert client.get("/api/v2/browse").json()["total"] == 0
+    assert client.get(f"/api/v2/reports/lost/{report_id}").status_code == 404
+    assert client.get(f"/api/v2/reports/lost/{report_id}/phone").status_code == 404
+    assert client.app.state.database.find_candidates(
+        "lost_pet", species="cat", city=None, model_version=client.app.state.service.embedder.name
+    ) == []

@@ -226,7 +226,7 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         return _public(service.create_publication(payload.model_copy(update={"contact": _phone(payload.contact)}), owner_id=user_id))
 
     @router.get("/browse")
-    def browse(type: Literal["all", "lost", "sighting", "dataset"] = "all",
+    def browse(type: Literal["all", "lost", "sighting"] = "all",
                city: str = "", district: str = "", coat_color: str = "", pattern: str = "",
                breed: str = "", since: str = "", until: str = "", limit: int = 100,
                offset: int = 0) -> dict:
@@ -243,29 +243,15 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             return not selected or selected.strip().casefold() in (value or "").casefold()
 
         items: list[dict] = []
-        if type != "dataset":
-            for row in database.browse_publications(type):
-                if not (contains(row["event_city"], city) and contains(row["event_district"], district)):
-                    continue
-                if (since and row["event_time"][:10] < since) or (until and row["event_time"][:10] > until):
-                    continue
-                if not all(contains(row["desc"].get(field, ""), selected) for field, selected in
-                           (("coat_color", coat_color), ("pattern", pattern), ("breed", breed))):
-                    continue
-                items.append(_public(row) | {"source_type": "report", "image_count": len(row["images"])})
-        if type in {"all", "dataset"} and not any((city, district, since, until)):
-            for row in database.list_dataset_cats():
-                if not (contains(row["coat_color"], coat_color) and contains(row["pattern"], pattern)
-                        and contains(row["breed"], breed)):
-                    continue
-                items.append({
-                    "id": row["id"], "type": "dataset", "source_type": "dataset", "species": "cat",
-                    "images": [f"/api/v2/dataset/images/{row['representative_image_id']}"],
-                    "desc": {"coat_color": row["coat_color"], "pattern": row["pattern"],
-                             "breed": row["breed"], "size": ""},
-                    "event_city": "", "event_district": "", "event_time": "",
-                    "image_count": row["image_count"], "review_status": row["review_status"],
-                })
+        for row in database.browse_publications(type):
+            if not (contains(row["event_city"], city) and contains(row["event_district"], district)):
+                continue
+            if (since and row["event_time"][:10] < since) or (until and row["event_time"][:10] > until):
+                continue
+            if not all(contains(row["desc"].get(field, ""), selected) for field, selected in
+                       (("coat_color", coat_color), ("pattern", pattern), ("breed", breed))):
+                continue
+            items.append(_public(row) | {"image_count": len(row["images"])})
         return {"items": items[offset:offset + limit], "total": len(items),
                 "limit": limit, "offset": offset, "has_more": offset + limit < len(items)}
 
@@ -366,6 +352,18 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
     @router.get("/admin/reports")
     def admin_reports(_admin: str = Depends(admin_user)) -> dict:
         return {"items": database.list_content_reports()}
+
+    @router.get("/admin/publications")
+    def admin_publications(_admin: str = Depends(admin_user)) -> dict:
+        return {"items": [_public(row) for row in database.admin_list_publications()]}
+
+    @router.delete("/admin/publications/{report_type}/{report_id}")
+    def admin_delete_publication(report_type: Literal["lost", "sighting"], report_id: str,
+                                 _admin: str = Depends(admin_user)) -> dict:
+        table = "lost_pet" if report_type == "lost" else "sighting"
+        if not database.admin_delete_publication(table, report_id):
+            raise HTTPException(status_code=404, detail="线索不存在或已删除")
+        return {"status": "deleted"}
 
     @router.patch("/admin/reports/{report_id}")
     def review_report(report_id: str, payload: ModerationDecision,

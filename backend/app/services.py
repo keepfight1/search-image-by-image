@@ -234,6 +234,7 @@ class BackendService:
                 "rank_score": round(rank_score, 4),
                 "reasons": reasons,
                 "has_phone": bool(candidate["contact"]),
+                "source_type": candidate["source_type"],
             }
             if payload.event_lat is not None and candidate["event_lat"] is not None:
                 distance = round(

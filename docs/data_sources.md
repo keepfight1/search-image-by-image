@@ -5,8 +5,8 @@
 - 来源：[Kaggle 页面](https://www.kaggle.com/datasets/timost1234/cat-individuals)；本机原始目录 `F:\以图搜图\archive\cat_individuals_dataset`，不提交原始图。
 - 身份标签为数字目录名。按自然升序取前 50 个实际存在的目录：`0001`–`0051`，其中没有 `0032`。一共 1,487 张图片。
 - 生成器 [`scripts/prepare_cat50.py`](../scripts/prepare_cat50.py) 输出图片及 `metadata.jsonl`（包含源图 SHA256、身份、标签来源和复核状态）；按身份拆分：训练 1,064 图、验证 169 图、测试图库 24 图、测试查询 230 图。拍摄会话、主体框和质量尚未人工标注，元数据中明确留空或标记待复核。这些拆分有用途记录，但**不能用于评估已在此数据集训练过的预训练模型的泛化能力**。
-- [`scripts/build_demo_gallery.py`](../scripts/build_demo_gallery.py) 另取每只猫 2 张图生成 `demo_gallery.npz`（100 图、50 身份）；[`scripts/import_cat50.py`](../scripts/import_cat50.py) 将 50 身份、1,487 图片记录和 100 向量导入独立 SQLite 表。浏览页会显示这些研究猫，但不会给它们虚构走失地点、时间或电话。以图搜图演示仍需显式打开 `BACKEND_ENABLE_DATASET_DEMO=1`。
-- [`dataset/first50_labels.csv`](../dataset/first50_labels.csv) 的 `cat_id` 保留源身份。42 个目录人工各抽看 2 张图打毛色/花纹初稿，8 个目录标记 `needs_review`；没有完整逐图审核。品种一律留空；地点、时间、走失事实在源数据里不存在，不合成。
+- [`scripts/build_demo_gallery.py`](../scripts/build_demo_gallery.py) 另取每只猫 2 张图生成 `demo_gallery.npz`（100 图、50 身份）；[`scripts/import_cat50.py`](../scripts/import_cat50.py) 将 50 身份、1,487 图片记录和 100 向量导入独立 SQLite 表。按用户后续要求，[`scripts/seed_cat50_lost.py`](../scripts/seed_cat50_lost.py) 又将 50 个身份各以 2 张图片录入走失线索流程。地点统一为上海市浦东新区、时间统一为 2026-10-26 12:00，均为演示值，`source_type=cat50_sample` 明示来源；没有联系人。浏览与匹配结果也显示“样例数据”，不能当作真实走失事件。
+- [`dataset/first50_labels.csv`](../dataset/first50_labels.csv) 的 `cat_id` 保留源身份。42 个目录人工各抽看 2 张图打毛色/花纹初稿，8 个目录标记 `needs_review`；没有完整逐图审核。品种一律留空；地点、时间、走失事实在源数据里不存在，业务种子脚本仅填入明确标记的演示值。
 - 模型卡称该数据为 CC BY；正式再分发、商用或公开展示前仍应核查原始 Kaggle 页面及图片来源的实际授权、归属与署名要求。
 
 ## 模型

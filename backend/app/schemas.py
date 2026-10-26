@@ -96,7 +96,9 @@ class PublicationResponse(PublicationBase):
     type: RecordType
     created_at: str
     owner_user_id: str | None = None
-    status: Literal["active", "resolved", "withdrawn", "hidden"] = "active"
+    status: Literal["active", "resolved", "withdrawn", "hidden", "deleted"] = "active"
+    source_type: str = "user"
+    source_cat_id: str | None = None
 
 
 class SearchResult(BaseModel):
@@ -115,6 +117,7 @@ class SearchResult(BaseModel):
     rank_score: float
     reasons: list[str] = Field(default_factory=list)
     has_phone: bool = False
+    source_type: str = "user"
 
 
 class SearchResponse(BaseModel):
