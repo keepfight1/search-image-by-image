@@ -4,14 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
 
+import numpy as np
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from .config import PROJECT_ROOT
 from .database import Database
 from .schemas import LostPetCreate, SearchRequest, SightingCreate
 from .services import BackendService
@@ -55,6 +60,10 @@ class StatusPatch(BaseModel):
     status: str = Field(pattern=r"^(active|resolved|withdrawn)$")
 
 
+class DemoSearch(BaseModel):
+    image_url: str
+
+
 def _public(record: dict) -> dict:
     return {
         key: value for key, value in record.items()
@@ -64,6 +73,14 @@ def _public(record: dict) -> dict:
 
 def build_router(service: BackendService, database: Database) -> APIRouter:
     router = APIRouter(prefix="/api/v2", tags=["cats"])
+    demo_dir = Path(os.getenv("CAT50_DEMO_DIR", PROJECT_ROOT / "dataset_cat50"))
+    demo_enabled = os.getenv("BACKEND_ENABLE_DATASET_DEMO", "0") == "1"
+
+    def gallery_path() -> Path:
+        path = demo_dir / "demo_gallery.npz"
+        if not demo_enabled or not path.is_file():
+            raise HTTPException(status_code=503, detail="50 只猫研究图库未启用或尚未生成")
+        return path
 
     def current_user(authorization: str | None = Header(default=None)) -> str:
         if not authorization or not authorization.startswith("Bearer "):
@@ -96,6 +113,56 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
     @router.post("/images", status_code=201)
     async def upload_image(image: UploadFile = File(...), user_id: str = Depends(current_user)) -> dict:
         return {"image_url": await service.save_upload(image, owner_id=user_id)}
+
+    @router.get("/demo/status")
+    def demo_status() -> dict:
+        return {"available": demo_enabled and (demo_dir / "demo_gallery.npz").is_file(), "purpose": "research_demo_only"}
+
+    @router.post("/demo/search")
+    def demo_search(payload: DemoSearch, user_id: str = Depends(current_user)) -> dict:
+        path = gallery_path()
+        if not database.image_owned_by(payload.image_url, user_id):
+            raise HTTPException(status_code=403, detail="查询图片不属于当前用户")
+        version = getattr(service.embedder, "version", service.embedder.name)
+        if service.embedder.name != "pet-recognition-base":
+            raise HTTPException(status_code=409, detail="研究图库需要 ONNX 个体识别模型")
+        with np.load(path, allow_pickle=False) as gallery:
+            if gallery["model_version"].item() != version:
+                raise HTTPException(status_code=409, detail="图库模型版本与服务不一致，请重建图库")
+            vectors = gallery["vectors"].astype(np.float32)
+            scores = vectors @ service.embedder.extract(service.resolve_image_url(payload.image_url)).astype(np.float32)
+            by_cat: dict[str, dict] = {}
+            for index, raw_id in enumerate(gallery["cat_ids"]):
+                cat_id = str(raw_id)
+                score = float(scores[index])
+                if cat_id not in by_cat or score > by_cat[cat_id]["score"]:
+                    by_cat[cat_id] = {
+                        "cat_id": cat_id,
+                        "score": round(score, 4),
+                        "coat_color": str(gallery["coat_colors"][index]),
+                        "pattern": str(gallery["patterns"][index]),
+                        "review_status": str(gallery["review_status"][index]),
+                        "image_url": f"/api/v2/demo/images/{cat_id}",
+                    }
+        return {"results": sorted(by_cat.values(), key=lambda item: item["score"], reverse=True)[:10],
+                "identity_count": len(by_cat), "purpose": "research_demo_only", "model_version": version}
+
+    @router.get("/demo/images/{cat_id}")
+    def demo_image(cat_id: str) -> FileResponse:
+        path = gallery_path()
+        if not cat_id.isdigit() or len(cat_id) != 4:
+            raise HTTPException(status_code=404, detail="图片不存在")
+        with np.load(path, allow_pickle=False) as gallery:
+            indices = np.where(gallery["cat_ids"] == cat_id)[0]
+            if len(indices) == 0:
+                raise HTTPException(status_code=404, detail="图片不存在")
+            filename = str(gallery["image_names"][int(indices[0])])
+        if Path(filename).name != filename:
+            raise HTTPException(status_code=404, detail="图片不存在")
+        image = demo_dir / "images" / filename
+        if not image.is_file():
+            raise HTTPException(status_code=404, detail="图片不存在")
+        return FileResponse(image, media_type="image/jpeg")
 
     @router.post("/reports/lost", status_code=201)
     def create_lost(payload: LostPetCreate, user_id: str = Depends(current_user)) -> dict:

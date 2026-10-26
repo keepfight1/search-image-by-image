@@ -7,12 +7,14 @@ services:
       BACKEND_CORS_ORIGINS: http://localhost:8080
       BACKEND_EMBEDDING_PROVIDER: onnx
       BACKEND_ENABLE_LEGACY: "0"
+      BACKEND_ENABLE_DATASET_DEMO: ${BACKEND_ENABLE_DATASET_DEMO:-0}
       BACKEND_THRESHOLDS: '{"cat": 0.45, "dog": 0.68}'
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/data:/app/data
       - ./models:/app/models:ro
+      - ./dataset_cat50:/app/dataset_cat50:ro
     restart: unless-stopped
 
   frontend:

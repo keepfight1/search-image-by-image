@@ -22,6 +22,7 @@ def main() -> None:
     if len(photos) < 2:
         raise SystemExit("请先运行 scripts/prepare_cat50.py")
     os.environ["BACKEND_ENABLE_LEGACY"] = "0"
+    os.environ["BACKEND_ENABLE_DATASET_DEMO"] = "1" if (ROOT / "dataset_cat50" / "demo_gallery.npz").is_file() else "0"
     with TemporaryDirectory() as tmp:
         data = Path(tmp)
         settings = Settings(
@@ -64,6 +65,15 @@ def main() -> None:
             assert any(item["id"] == sighting_id for item in matched.json()["results"]), matched.json()
             assert client.get("/api/upload").status_code == 404
             print("ONNX API smoke passed; score:", matched.json()["results"][0]["score"])
+            if os.environ["BACKEND_ENABLE_DATASET_DEMO"] == "1":
+                with photos[-1].open("rb") as stream:
+                    uploaded = client.post("/api/v2/images", files={"image": (photos[-1].name, stream, "image/jpeg")}, headers=owner)
+                assert uploaded.status_code == 201, uploaded.text
+                demo = client.post("/api/v2/demo/search", json=uploaded.json(), headers=owner)
+                assert demo.status_code == 200, demo.text
+                assert "0001" in [item["cat_id"] for item in demo.json()["results"][:5]]
+                assert client.get("/api/v2/demo/images/0001").status_code == 200
+                print("50-cat demo smoke passed; top cat:", demo.json()["results"][0]["cat_id"])
 
 
 if __name__ == "__main__":

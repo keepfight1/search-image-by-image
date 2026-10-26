@@ -5,6 +5,7 @@
 - 来源：[Kaggle 页面](https://www.kaggle.com/datasets/timost1234/cat-individuals)；本机原始目录 `F:\以图搜图\archive\cat_individuals_dataset`，不提交原始图。
 - 身份标签为数字目录名。按自然升序取前 50 个实际存在的目录：`0001`–`0051`，其中没有 `0032`。一共 1,487 张图片。
 - 生成器 [`scripts/prepare_cat50.py`](../scripts/prepare_cat50.py) 输出图片及 `metadata.jsonl`；按身份拆分：训练 1,064 图、验证 169 图、测试图库 24 图、测试查询 230 图。这些拆分有用途记录，但**不能用于评估已在此数据集训练过的预训练模型的泛化能力**。
+- [`scripts/build_demo_gallery.py`](../scripts/build_demo_gallery.py) 另取每只猫 2 张图生成 `demo_gallery.npz`（100 图、50 身份）；平台只有显式打开 `BACKEND_ENABLE_DATASET_DEMO=1` 才显示独立研究演示页。该图库与真实发布库隔离。
 - [`dataset/first50_labels.csv`](../dataset/first50_labels.csv) 的 `cat_id` 保留源身份。42 个目录人工各抽看 2 张图打毛色/花纹初稿，8 个目录标记 `needs_review`；没有完整逐图审核。品种一律留空；地点、时间、走失事实在源数据里不存在，不合成。
 - 模型卡称该数据为 CC BY；正式再分发、商用或公开展示前仍应核查原始 Kaggle 页面及图片来源的实际授权、归属与署名要求。
 

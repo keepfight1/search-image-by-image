@@ -8,6 +8,7 @@
 - FastAPI `/api/v2`：用户身份、猫记录、状态管理、公开字段脱敏、匹配、联系请求；上传去 EXIF 并限制格式、大小和像素数。
 - RF-DETR Nano 检测猫并裁剪，`pet-recognition-base` 输出 512 维向量；多图取最高相似度，按记录去重，同区和人工毛色/花纹仅作排序加分。模型文件缺失时 ONNX 模式直接启动失败。
 - Cat Individual Images 前 50 个实际存在的个体目录（`0001`–`0051`，缺 `0032`）共 1,487 张；身份标签来自目录，毛色/花纹是本项目的人工抽样标注。图片和模型权重不提交 Git。
+- 单独的“50只猫演示”入口可搜索研究图库，绝不把数据集猫当作真实走失/目击记录。默认关闭，只有明确启用才展示图库图片。
 
 项目仍是**本地原型**。目前使用 SQLite 与本地文件、同步提取特征和精确扫描；尚无 PostgreSQL/pgvector、异步任务、审核举报、编辑补图、正式阈值标定和外部真实场景验收。详见 [实施进度](docs/progress.md)。不要把数据集照片伪装为真实走失或目击记录。
 
@@ -44,11 +45,12 @@ npm run dev
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\prepare_cat50.py --source "F:\以图搜图\archive\cat_individuals_dataset" --contact-sheets
+.\.venv\Scripts\python.exe scripts\build_demo_gallery.py
 .\.venv\Scripts\python.exe scripts\evaluate_cat50.py
 .\.venv\Scripts\python.exe scripts\smoke_onnx_api.py
 ```
 
-输出在未跟踪的 `dataset_cat50/`：按个体生成 `metadata.jsonl`、`summary.json`、整理后的图片、联系表和 `integration_eval.json`。标注文件为 [`dataset/first50_labels.csv`](dataset/first50_labels.csv)。42 只为**每只抽看两图**的初步标注，8 只标记 `needs_review`；品种没有可靠依据，全部留空。尚未逐张复核 1,487 张照片。
+输出在未跟踪的 `dataset_cat50/`：按个体生成 `metadata.jsonl`、`summary.json`、整理后的图片、联系表、100 张图的 `demo_gallery.npz` 和 `integration_eval.json`。要在页面打开演示入口，请先运行准备脚本和图库构建脚本，然后**重启后端前**设置 `$env:BACKEND_ENABLE_DATASET_DEMO='1'`；Docker 也可用同名环境变量显式开启。标注文件为 [`dataset/first50_labels.csv`](dataset/first50_labels.csv)。42 只为**每只抽看两图**的初步标注，8 只标记 `needs_review`；品种没有可靠依据，全部留空。尚未逐张复核 1,487 张照片。
 
 评估脚本以其中 40 只为图库，取 80 张正查询和另外 10 只猫的 20 张库外查询。这是**接通检查**：预训练模型使用过 Cat Individual Images，图库与查询也可能含同场景连拍，绝不能当作独立准确率或真实寻猫效果。见 [评估与数据说明](docs/data_sources.md)。
 
