@@ -87,6 +87,49 @@ class SearchRequest(LocationFields):
         return values
 
 
+class ImageMatchRequest(BaseModel):
+    """An image query that does not create a public report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: RecordType
+    images: list[str] = Field(min_length=1, max_length=5)
+    city: str = Field(default="", max_length=100)
+    district: str = Field(default="", max_length=100)
+    coat_color: str = Field(default="", max_length=50)
+    pattern: str = Field(default="", max_length=50)
+    breed: str = Field(default="", max_length=100)
+    size: str = Field(default="", max_length=20)
+    since: str = ""
+    until: str = ""
+    top_k: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("images")
+    @classmethod
+    def validate_images(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError("images 不能包含重复图片")
+        if any(not value.startswith("/uploads/") or "/" in value.removeprefix("/uploads/") for value in values):
+            raise ValueError("images 必须使用已上传的图片地址")
+        return values
+
+    @field_validator("since", "until")
+    @classmethod
+    def validate_date(cls, value: str) -> str:
+        if value:
+            try:
+                datetime.strptime(value, "%Y-%m-%d")
+            except ValueError as exc:
+                raise ValueError("日期必须使用 YYYY-MM-DD 格式") from exc
+        return value
+
+    @model_validator(mode="after")
+    def validate_range(self) -> "ImageMatchRequest":
+        if self.since and self.until and self.since > self.until:
+            raise ValueError("开始日期不能晚于结束日期")
+        return self
+
+
 class UploadResponse(BaseModel):
     image_url: str
 

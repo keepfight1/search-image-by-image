@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from .config import PROJECT_ROOT
 from .database import Database
-from .schemas import Description, LostPetCreate, SearchRequest, SightingCreate
+from .schemas import Description, ImageMatchRequest, LostPetCreate, SearchRequest, SightingCreate
 from .services import BackendService
 
 
@@ -224,6 +224,12 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         if len(payload.images) > 5:
             raise HTTPException(status_code=422, detail="每条线索最多上传 5 张图片")
         return _public(service.create_publication(payload.model_copy(update={"contact": _phone(payload.contact)}), owner_id=user_id))
+
+    @router.post("/match/search")
+    def image_match(payload: ImageMatchRequest, user_id: str = Depends(current_user)) -> dict:
+        if any(not database.image_owned_by(url, user_id) for url in payload.images):
+            raise HTTPException(status_code=403, detail="查询图片不属于当前用户")
+        return service.search_uploaded_images(payload)
 
     @router.get("/browse")
     def browse(type: Literal["all", "lost", "sighting"] = "all",

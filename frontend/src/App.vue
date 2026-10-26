@@ -33,14 +33,28 @@
       </section>
 
       <section v-else-if="page === 'match'" class="content">
-        <div class="heading"><span>以图搜图</span><h2>匹配线索</h2><p>选择你已发布的走失或发现线索，按图片和描述检索另一类线索。结果只是候选，需要人工核实。</p></div>
-        <div v-if="!token" class="empty">请先登录并发布线索。</div>
-        <div v-else-if="!matchableItems.length" class="empty">还没有可匹配的线索。请先发布走失或发现信息。</div>
-        <div v-else class="panel match-panel">
-          <label>选择线索<select v-model="selectedMatchKey"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}{{ item.source_type === 'cat50_sample' ? ' · 样例数据' : '' }}</option></select></label>
-          <button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">{{ busy ? '正在匹配…' : '开始匹配' }}</button>
-        </div>
-        <section v-if="matchesShown" class="results"><div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div><div v-if="!matches.length" class="empty">暂时没有候选；新线索出现后可再次匹配。</div><div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }} <span v-if="item.source_type === 'cat50_sample'" class="sample-badge">样例数据 · 地点时间为演示值</span></small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button v-if="item.has_phone" class="secondary small" @click="showPhone(item, matchTargetType)">联系发布者</button><small v-else>{{ item.source_type === 'cat50_sample' ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div></section>
+        <div class="heading"><span>以图搜图</span><h2>匹配线索</h2><p>上传猫的照片，选择身份并设置筛选条件，即可检索库中相反类型的线索；无需先发布。</p></div>
+        <div class="switch"><button :class="{ selected: matchForm.type === 'lost' }" @click="matchForm.type = 'lost'">我丢了猫 · 查找发现线索</button><button :class="{ selected: matchForm.type === 'sighting' }" @click="matchForm.type = 'sighting'">我发现猫 · 查找走失线索</button></div>
+        <form class="panel" @submit.prevent="runImageMatch">
+          <div class="grid">
+            <label>城市<input v-model.trim="matchForm.city" maxlength="100" placeholder="留空搜索全部城市" /></label>
+            <label>区县<input v-model.trim="matchForm.district" maxlength="100" placeholder="留空搜索全部区县" /></label>
+            <label>开始日期<input v-model="matchForm.since" type="date" /></label>
+            <label>结束日期<input v-model="matchForm.until" type="date" /></label>
+            <label>毛色<select v-model="matchForm.coat_color"><option value="">全部毛色</option><option v-for="color in coatOptions" :key="color">{{ color }}</option></select></label>
+            <label>花纹<select v-model="matchForm.pattern"><option value="">全部花纹</option><option v-for="pattern in patternOptions" :key="pattern">{{ pattern }}</option></select></label>
+            <label>品种<input v-model.trim="matchForm.breed" maxlength="100" placeholder="留空不限品种" /></label>
+            <label>体型<select v-model="matchForm.size"><option value="">全部体型</option><option>小</option><option>中</option><option>大</option></select></label>
+            <label>最多显示<select v-model.number="matchForm.top_k"><option :value="10">10 条</option><option :value="20">20 条</option><option :value="50">50 条</option></select></label>
+          </div>
+          <label class="upload match-upload">查询照片 * <small>1–5 张 JPG/PNG，每张不超过 5MB。正脸、侧面和全身照可一起上传。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectMatchFiles" /></label>
+          <div v-if="matchPreviews.length" class="previews"><div v-for="(src, i) in matchPreviews" :key="src"><img :src="src" :alt="`查询照片 ${i + 1}`" /><button type="button" @click="removeMatchFile(i)">×</button></div></div>
+          <p class="tip">筛选条件用于限制候选范围；相似分只是排序依据，样例线索的地点和时间是演示值。</p>
+          <button type="button" class="secondary match-reset" @click="resetMatchFilters">清空筛选条件</button>
+          <button class="primary submit" :disabled="busy">{{ busy ? '正在匹配…' : '上传照片并开始匹配' }}</button>
+        </form>
+        <details v-if="token && matchableItems.length" class="saved-match"><summary>或者用我已发布的线索匹配</summary><div class="panel match-panel"><label>已发布线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}{{ item.source_type === 'cat50_sample' ? ' · 样例数据' : '' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
+        <section v-if="matchesShown" class="results"><div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'custom' ? '所选筛选条件' : searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="activeReport && searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div><div v-if="!matches.length" class="empty">暂时没有符合条件的候选；可放宽筛选条件后再试。</div><div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }} <span v-if="item.source_type === 'cat50_sample'" class="sample-badge">样例数据 · 地点时间为演示值</span></small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button v-if="item.has_phone" class="secondary small" @click="showPhone(item, matchTargetType)">联系发布者</button><small v-else>{{ item.source_type === 'cat50_sample' ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div></section>
       </section>
 
       <section v-else-if="page === 'browse'" class="content">
@@ -112,7 +126,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onUnmounted } from 'vue'
 import axios from 'axios'
 
 const tabs = [{ id: 'publish', label: '发布线索' }, { id: 'match', label: '匹配线索' }, { id: 'browse', label: '浏览信息' }, { id: 'mine', label: '我的发布' }, { id: 'admin', label: '管理员' }]
@@ -122,6 +136,9 @@ const role = ref(localStorage.getItem('cat_role') || 'user'), visibleTabs = comp
 const authOpen = ref(false), registerMode = ref(false), auth = reactive({ username: '', password: '' })
 const form = reactive({ type: 'lost', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } })
 const files = ref([]), previews = ref([]), existingImages = ref([]), editingReport = ref(null), matches = ref([]), matchesShown = ref(false), matchTargetType = ref('sighting'), searchScope = ref('same_city'), activeReport = ref(null)
+const matchForm = reactive({ type: 'lost', city: '', district: '', since: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 })
+const matchFiles = ref([]), matchPreviews = ref([]), matchImageUrls = ref([])
+watch(matchForm, () => { matchesShown.value = false })
 const browseFilters = reactive({ type: 'all', city: '', district: '', coat_color: '', pattern: '', breed: '', since: '', until: '' })
 const coatOptions = ['黑', '白', '灰', '橘', '棕', '奶油', '三花', '玳瑁', '黑白', '灰白', '橘白', '其他']
 const patternOptions = ['纯色', '虎斑', '双色', '三花', '玳瑁', '重点色', '斑点', '其他']
@@ -137,11 +154,14 @@ const headers = () => ({ Authorization: `Bearer ${token.value}` })
 const errorText = e => { const detail = e.response?.data?.detail; return typeof detail === 'string' ? detail : e.message || '请求失败' }
 function choose(type) { editingReport.value = null; existingImages.value = []; previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []; Object.assign(form, { type, event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } }); matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
 function startEdit(item) { editingReport.value = { type: item.type, id: item.id }; existingImages.value = [...item.images]; previews.value.forEach(URL.revokeObjectURL); files.value = []; previews.value = []; form.type = item.type; form.event_city = item.event_city; form.event_district = item.event_district; form.event_time = item.event_time.replace(' ', 'T'); form.event_lat = item.event_lat ?? null; form.event_lng = item.event_lng ?? null; form.contact = item.contact || ''; form.desc = { ...item.desc }; matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 280, behavior: 'smooth' }) }
-function logout() { token.value = ''; username.value = ''; role.value = 'user'; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); localStorage.removeItem('cat_role'); page.value = 'publish'; notice.value = '已退出登录' }
+function logout() { token.value = ''; username.value = ''; role.value = 'user'; matchImageUrls.value = []; myItems.value = []; matchesShown.value = false; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); localStorage.removeItem('cat_role'); page.value = 'publish'; notice.value = '已退出登录' }
 async function authenticate() { busy.value = true; try { if (registerMode.value) await axios.post('/api/v2/auth/register', auth); const { data } = await axios.post('/api/v2/auth/login', auth); token.value = data.access_token; username.value = auth.username; role.value = data.role || 'user'; localStorage.setItem('cat_token', token.value); localStorage.setItem('cat_user', username.value); localStorage.setItem('cat_role', role.value); auth.password = ''; authOpen.value = false; notice.value = '登录成功' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
 function selectFiles(e) { const next = Array.from(e.target.files || []); if (next.length + existingImages.value.length > 5 || next.some(f => !['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024)) { notice.value = '每条线索最多 5 张 JPG/PNG，每张不超过 5MB'; e.target.value = ''; return } previews.value.forEach(URL.revokeObjectURL); files.value = next; previews.value = next.map(URL.createObjectURL) }
 function removeFile(i) { URL.revokeObjectURL(previews.value[i]); files.value.splice(i, 1); previews.value.splice(i, 1) }
-onUnmounted(() => previews.value.forEach(URL.revokeObjectURL))
+function selectMatchFiles(e) { const next = Array.from(e.target.files || []); e.target.value = ''; if (!next.length) return; if (next.length > 5 || next.some(f => !['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024)) { notice.value = '查询照片最多 5 张 JPG/PNG，每张不超过 5MB'; return } matchPreviews.value.forEach(URL.revokeObjectURL); matchFiles.value = next; matchPreviews.value = next.map(URL.createObjectURL); matchImageUrls.value = []; matchesShown.value = false }
+function removeMatchFile(i) { URL.revokeObjectURL(matchPreviews.value[i]); matchFiles.value.splice(i, 1); matchPreviews.value.splice(i, 1); matchImageUrls.value = []; matchesShown.value = false }
+function resetMatchFilters() { Object.assign(matchForm, { city: '', district: '', since: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 }); matchesShown.value = false }
+onUnmounted(() => { previews.value.forEach(URL.revokeObjectURL); matchPreviews.value.forEach(URL.revokeObjectURL) })
 function useLocation() { if (!navigator.geolocation) { notice.value = '浏览器不支持定位'; return } navigator.geolocation.getCurrentPosition(p => { form.event_lat = p.coords.latitude; form.event_lng = p.coords.longitude; notice.value = '已填入当前位置，请确认这里就是事发地点' }, () => { notice.value = '定位失败，可只填城市和区县' }, { timeout: 10000 }) }
 async function publish() {
   if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return }
@@ -168,6 +188,27 @@ async function publish() {
   } catch (e) { notice.value = errorText(e) } finally { busy.value = false }
 }
 async function navigate(target) { page.value = target; if (target === 'match') matchesShown.value = false; if (target === 'browse') await loadBrowse(0); if (target === 'mine' || target === 'match') await loadMine(); if (target === 'admin') await loadAdminReports() }
+async function runImageMatch() {
+  if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return }
+  if (!matchFiles.value.length) { notice.value = '请先选择至少一张查询照片'; return }
+  if (matchForm.since && matchForm.until && matchForm.since > matchForm.until) { notice.value = '开始日期不能晚于结束日期'; return }
+  busy.value = true; matchesShown.value = false
+  try {
+    if (matchImageUrls.value.length !== matchFiles.value.length) {
+      const urls = []
+      for (const file of matchFiles.value) {
+        const body = new FormData(); body.append('image', file)
+        const { data } = await axios.post('/api/v2/images', body, { headers: headers() })
+        urls.push(data.image_url)
+      }
+      matchImageUrls.value = urls
+    }
+    const { data } = await axios.post('/api/v2/match/search', { ...matchForm, images: matchImageUrls.value }, { headers: headers() })
+    matches.value = data.results || []; matchesShown.value = true; activeReport.value = null; searchScope.value = 'custom'
+    matchTargetType.value = matchForm.type === 'lost' ? 'sighting' : 'lost'
+    notice.value = `匹配完成，找到 ${data.total} 条符合条件的相似线索`
+  } catch (e) { notice.value = errorText(e) } finally { busy.value = false }
+}
 function flag(item, type) { if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return } reportTarget.value = item; reportType.value = type; reportReason.value = '' }
 async function sendReport() { busy.value = true; try { await axios.post(`/api/v2/reports/${reportType.value}/${reportTarget.value.id}/report`, { reason: reportReason.value }, { headers: headers() }); reportTarget.value = null; notice.value = '举报已提交，等待管理员审核' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
 async function loadAdminReports() { if (role.value !== 'admin') return; try { const [reports, publications] = await Promise.all([axios.get('/api/v2/admin/reports', { headers: headers() }), axios.get('/api/v2/admin/publications', { headers: headers() })]); adminReports.value = reports.data.items || []; adminPublications.value = publications.data.items || [] } catch (e) { notice.value = errorText(e) } }
@@ -196,6 +237,7 @@ async function showPhone(item, type) { try { const { data } = await axios.get(`/
 .overlay { position: fixed; inset: 0; background: #112919a6; z-index: 10; display: grid; place-items: center; padding: 20px; } .dialog { position: relative; width: min(440px,100%); display: grid; gap: 15px; } .dialog h2 { margin: 0; } .dialog p { color: #718075; margin: 0; } .close { position: absolute; right: 14px; top: 10px; border: 0; background: none; font-size: 28px; }
 .sample-badge { display: inline-block; border-radius: 20px; background: #fff0cb; color: #845b0b; padding: 3px 8px; font-size: 12px; font-weight: 700; }
 .match-panel { display: flex; gap: 15px; align-items: end; max-width: 760px; } .match-panel label { flex: 1; }
+.match-upload { margin-top: 22px; } .match-reset { margin: 6px 0 12px; } .saved-match { margin-top: 25px; } .saved-match summary { cursor: pointer; color: #267a47; font-weight: 700; margin-bottom: 12px; }
 .admin-toolbar { display: flex; gap: 12px; align-items: end; margin-bottom: 18px; flex-wrap: wrap; } .admin-toolbar label { min-width: 160px; } .admin-item { margin-bottom: 10px; } .delete-button { margin-left: auto; border-color: #b84c43; color: #a33b31; } .admin-reports-heading { margin-top: 40px; }
 .browse-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin-bottom: 18px; }
 .filter-actions { display: flex; align-items: end; gap: 8px; }
@@ -207,5 +249,5 @@ async function showPhone(item, type) { try { const { data } = await axios.get(`/
 .dataset-photos img { width: 100%; height: 135px; object-fit: cover; border-radius: 8px; }
 @media(max-width:900px){ .browse-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width:600px){ .browse-filters { grid-template-columns: 1fr; } .dataset-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media(max-width:750px){ .topbar { flex-wrap: wrap; padding: 16px; } nav { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 3px; } nav button { font-size: 13px; } main { padding: 0 16px 60px; } .hero { padding: 34px 25px; } .grid,.result-grid { grid-template-columns: 1fr; } .location { flex-wrap: wrap; } .result > img { width: 110px; height: 130px; } .my-item { flex-wrap: wrap; } .my-actions { margin-left: 0; display: flex; width: 100%; } }
+@media(max-width:750px){ .topbar { flex-wrap: wrap; padding: 16px; } nav { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 3px; } nav button { font-size: 13px; } main { padding: 0 16px 60px; } .hero { padding: 34px 25px; } .grid,.result-grid { grid-template-columns: 1fr; } .location,.match-panel { flex-wrap: wrap; } .switch { flex-wrap: wrap; } .result > img { width: 110px; height: 130px; } .my-item { flex-wrap: wrap; } .my-actions { margin-left: 0; display: flex; width: 100%; } }
 </style>

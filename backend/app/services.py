@@ -12,7 +12,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from .config import Settings
 from .database import Database
 from .embedding import EmbeddingProvider
-from .schemas import PublicationBase, SearchRequest
+from .schemas import ImageMatchRequest, PublicationBase, SearchRequest
 
 
 ALLOWED_IMAGE_FORMATS = {"JPEG", "PNG"}
@@ -176,6 +176,66 @@ class BackendService:
             "expanded": expanded,
             "message": "" if results else "暂无可靠线索",
         }
+
+    def search_uploaded_images(self, payload: ImageMatchRequest) -> dict:
+        """Search opposite-type active reports without publishing the query images."""
+        try:
+            query_features = np.stack([
+                self.embedder.extract(self.resolve_image_url(url)).astype(np.float32)
+                for url in payload.images
+            ])
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        target_table = "sighting" if payload.type == "lost" else "lost_pet"
+        candidates = self.database.find_candidates(
+            target_table, species="cat", city=None,
+            model_version=getattr(self.embedder, "version", self.embedder.name),
+        )
+
+        def contains(value: str, selected: str) -> bool:
+            return not selected or selected.strip().casefold() in (value or "").casefold()
+
+        by_report: dict[str, dict] = {}
+        for candidate in candidates:
+            description = candidate["desc"]
+            if not (contains(candidate["event_city"], payload.city)
+                    and contains(candidate["event_district"], payload.district)):
+                continue
+            if payload.since and candidate["event_time"][:10] < payload.since:
+                continue
+            if payload.until and candidate["event_time"][:10] > payload.until:
+                continue
+            if any(not contains(description.get(field, ""), getattr(payload, field))
+                   for field in ("coat_color", "pattern", "breed", "size")):
+                continue
+            feature_name = Path(candidate["feature_path"]).name
+            if feature_name != candidate["feature_path"]:
+                raise ValueError("数据库中的特征文件路径非法")
+            feature_path = self.settings.feature_dir / feature_name
+            if not feature_path.is_file():
+                continue
+            feature = np.load(feature_path, allow_pickle=False).astype(np.float32)
+            score = float(np.max(query_features @ feature))
+            if score < self.settings.thresholds["cat"]:
+                continue
+            previous = by_report.get(candidate["id"])
+            if previous is None or score > previous["score"]:
+                by_report[candidate["id"]] = {
+                    "id": candidate["id"], "image_id": candidate["image_id"],
+                    "image_url": candidate["image_url"], "species": "cat",
+                    "desc": description, "event_time": candidate["event_time"],
+                    "district": candidate["event_district"], "city": candidate["event_city"],
+                    "score": round(score, 4), "rank_score": round(score, 4),
+                    "reasons": ["图片相似", "符合筛选条件"] if any((payload.city, payload.district,
+                        payload.coat_color, payload.pattern, payload.breed, payload.size,
+                        payload.since, payload.until)) else ["图片相似"],
+                    "has_phone": bool(candidate["contact"]),
+                    "source_type": candidate["source_type"],
+                }
+        results = sorted(by_report.values(), key=lambda item: item["score"], reverse=True)
+        return {"results": results[:payload.top_k], "total": len(results),
+                "message": "" if results else "暂无符合条件的相似线索"}
 
     def resolve_image_url(self, image_url: str) -> Path:
         filename = image_url.removeprefix("/uploads/")

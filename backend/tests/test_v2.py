@@ -196,3 +196,27 @@ def test_admin_can_delete_publication_and_remove_it_from_search(client, base_pay
     assert client.app.state.database.find_candidates(
         "lost_pet", species="cat", city=None, model_version=client.app.state.service.embedder.name
     ) == []
+
+
+def test_uploaded_image_match_filters_without_publishing(client, base_payload):
+    publisher = _auth(client, "match_publisher")
+    searcher = _auth(client, "match_searcher")
+    report_image = _upload(client, publisher)
+    report = {**base_payload, "type": "sighting", "images": [report_image], "contact": "13800138008"}
+    created = client.post("/api/v2/reports/sighting", json=report, headers=publisher)
+    assert created.status_code == 201, created.text
+    query_image = _upload(client, searcher)
+    query = {"type": "lost", "images": [query_image], "city": base_payload["event_city"],
+             "coat_color": base_payload["desc"]["coat_color"], "top_k": 10}
+    assert client.post("/api/v2/match/search", json=query).status_code == 401
+    assert client.post("/api/v2/match/search", json=query | {"images": [report_image]}, headers=searcher).status_code == 403
+    found = client.post("/api/v2/match/search", json=query, headers=searcher)
+    assert found.status_code == 200, found.text
+    assert found.json()["results"][0]["id"] == created.json()["id"]
+    assert found.json()["total"] == 1
+    assert client.get("/api/v2/browse").json()["total"] == 1
+    for extra in ({"city": "不存在的城市"}, {"coat_color": "不存在的毛色"}, {"since": "2030-01-01"}):
+        response = client.post("/api/v2/match/search", json=query | extra, headers=searcher)
+        assert response.status_code == 200 and response.json()["total"] == 0
+    assert client.post("/api/v2/match/search", json=query | {"since": "2030-01-01", "until": "2020-01-01"}, headers=searcher).status_code == 422
+    assert client.post("/api/v2/match/search", json=query | {"images": []}, headers=searcher).status_code == 422
