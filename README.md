@@ -60,6 +60,8 @@ npm run dev
 
 评估脚本以其中 40 只为图库，取 80 张正查询和另外 10 只猫的 20 张库外查询。这是**接通检查**：预训练模型使用过 Cat Individual Images，图库与查询也可能含同场景连拍，绝不能当作独立准确率或真实寻猫效果。见 [评估与数据说明](docs/data_sources.md)。
 
+课堂展示的可复现测试包与详细结果见 [课堂展示评测报告](docs/课堂展示评测报告.md)。它分别测当前 50 猫图库和外部 HelloStreetCat 街猫图库；外部数据的图片与逐张预测只保存在未跟踪的 `dataset_cat50/teacher_testset/`，可直接上传演示的图片在 `dataset_cat50/platform_demo/`。外部测试表现明显弱于同源测试，报告中保留完整结果与限制。
+
 ## 测试
 
 ```powershell
