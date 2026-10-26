@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from app.config import Settings  # noqa: E402
 from app.main import create_app  # noqa: E402
+from import_cat50 import prepare_rows  # noqa: E402
 
 
 def main() -> None:
@@ -36,6 +37,9 @@ def main() -> None:
             cors_origins=(),
         )
         with TestClient(create_app(settings)) as client:
+            if os.environ["BACKEND_ENABLE_DATASET_DEMO"] == "1":
+                client.app.state.database.import_cat_dataset(*prepare_rows(ROOT / "dataset_cat50"))
+
             def token(username: str) -> str:
                 credentials = {"username": username, "password": "local-smoke-password"}
                 assert client.post("/api/v2/auth/register", json=credentials).status_code == 201
@@ -53,6 +57,7 @@ def main() -> None:
                     "images": [uploaded.json()["image_url"]],
                     "desc": {}, "event_city": "上海", "event_district": "浦东新区",
                     "event_time": "2026-10-26 12:00", "event_lat": None, "event_lng": None,
+                    "contact": "13800138000",
                 }
                 created = client.post(f"/api/v2/reports/{kind}", json=payload, headers=headers)
                 assert created.status_code == 201, created.text
@@ -60,6 +65,7 @@ def main() -> None:
 
             sighting_id, _ = report("sighting", "finder_smoke", photos[0])
             lost_id, owner = report("lost", "owner_smoke", photos[-1])
+            assert client.get(f"/api/v2/reports/sighting/{sighting_id}/phone").json() == {"phone": "13800138000"}
             matched = client.get(f"/api/v2/reports/lost/{lost_id}/matches", headers=owner)
             assert matched.status_code == 200, matched.text
             assert any(item["id"] == sighting_id for item in matched.json()["results"]), matched.json()

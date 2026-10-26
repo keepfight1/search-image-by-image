@@ -114,6 +114,7 @@ class SearchResult(BaseModel):
     score: float
     rank_score: float
     reasons: list[str] = Field(default_factory=list)
+    has_phone: bool = False
 
 
 class SearchResponse(BaseModel):

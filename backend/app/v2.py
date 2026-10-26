@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 import numpy as np
@@ -46,16 +48,6 @@ class Credentials(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
-class ContactRequestCreate(BaseModel):
-    target_type: str = Field(pattern=r"^(lost|sighting)$")
-    target_id: str = Field(min_length=1, max_length=64)
-    message: str = Field(min_length=5, max_length=1000)
-
-
-class ContactReply(BaseModel):
-    reply: str = Field(min_length=1, max_length=1000)
-
-
 class StatusPatch(BaseModel):
     status: str = Field(pattern=r"^(active|resolved|withdrawn)$")
 
@@ -72,6 +64,7 @@ class ReportPatch(BaseModel):
     event_time: str | None = None
     event_lat: float | None = None
     event_lng: float | None = None
+    contact: str | None = Field(default=None, max_length=30)
 
 
 class AbuseReport(BaseModel):
@@ -86,11 +79,18 @@ def _public(record: dict) -> dict:
     return {
         key: value for key, value in record.items()
         if key not in {"contact", "owner_user_id", "event_lat", "event_lng"}
-    }
+    } | {"has_phone": bool(record.get("contact"))}
 
 
 def _owner_view(record: dict) -> dict:
-    return {key: value for key, value in record.items() if key not in {"contact", "owner_user_id"}}
+    return {key: value for key, value in record.items() if key != "owner_user_id"}
+
+
+def _phone(value: str) -> str:
+    phone = value.strip()
+    if not re.fullmatch(r"\+?[0-9][0-9 -]{5,24}", phone) or not 7 <= sum(ch.isdigit() for ch in phone) <= 15:
+        raise HTTPException(status_code=422, detail="请填写有效联系电话（7–15 位数字，可含区号）")
+    return phone
 
 
 def build_router(service: BackendService, database: Database) -> APIRouter:
@@ -98,10 +98,16 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
     demo_dir = Path(os.getenv("CAT50_DEMO_DIR", PROJECT_ROOT / "dataset_cat50"))
     demo_enabled = os.getenv("BACKEND_ENABLE_DATASET_DEMO", "0") == "1"
 
-    def gallery_path() -> Path:
-        path = demo_dir / "demo_gallery.npz"
-        if not demo_enabled or not path.is_file():
-            raise HTTPException(status_code=503, detail="50 只猫研究图库未启用或尚未生成")
+    def dataset_image_file(image_id: str) -> Path:
+        row = database.get_dataset_image(image_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="图片不存在")
+        relative = Path(row["image_path"])
+        if relative.is_absolute() or relative.parts[:1] != ("images",) or len(relative.parts) != 2:
+            raise HTTPException(status_code=404, detail="图片路径无效")
+        path = demo_dir / relative
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="图片文件不存在")
         return path
 
     def current_user(authorization: str | None = Header(default=None)) -> str:
@@ -146,57 +152,62 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
 
     @router.get("/demo/status")
     def demo_status() -> dict:
-        return {"available": demo_enabled and (demo_dir / "demo_gallery.npz").is_file(), "purpose": "research_demo_only"}
+        counts = database.dataset_counts()
+        return {"available": demo_enabled and counts["vector_count"] > 0,
+                "purpose": "research_demo_only", **counts}
 
     @router.post("/demo/search")
     def demo_search(payload: DemoSearch, user_id: str = Depends(current_user)) -> dict:
-        path = gallery_path()
+        if not demo_enabled:
+            raise HTTPException(status_code=503, detail="研究图库未启用")
         if not database.image_owned_by(payload.image_url, user_id):
             raise HTTPException(status_code=403, detail="查询图片不属于当前用户")
         version = getattr(service.embedder, "version", service.embedder.name)
         if service.embedder.name != "pet-recognition-base":
             raise HTTPException(status_code=409, detail="研究图库需要 ONNX 个体识别模型")
-        with np.load(path, allow_pickle=False) as gallery:
-            if gallery["model_version"].item() != version:
-                raise HTTPException(status_code=409, detail="图库模型版本与服务不一致，请重建图库")
-            vectors = gallery["vectors"].astype(np.float32)
-            try:
-                query_vector = service.embedder.extract(service.resolve_image_url(payload.image_url)).astype(np.float32)
-            except ValueError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
-            scores = vectors @ query_vector
-            by_cat: dict[str, dict] = {}
-            for index, raw_id in enumerate(gallery["cat_ids"]):
-                cat_id = str(raw_id)
-                score = float(scores[index])
-                if cat_id not in by_cat or score > by_cat[cat_id]["score"]:
-                    by_cat[cat_id] = {
-                        "cat_id": cat_id,
-                        "score": round(score, 4),
-                        "coat_color": str(gallery["coat_colors"][index]),
-                        "pattern": str(gallery["patterns"][index]),
-                        "review_status": str(gallery["review_status"][index]),
-                        "image_url": f"/api/v2/demo/images/{cat_id}",
-                    }
+        gallery = database.get_dataset_vectors(version)
+        if not gallery:
+            raise HTTPException(status_code=503, detail="数据库里没有与当前模型匹配的图库向量")
+        vectors = np.stack([np.frombuffer(row["vector"], dtype=np.float16).astype(np.float32) for row in gallery])
+        try:
+            query_vector = service.embedder.extract(service.resolve_image_url(payload.image_url)).astype(np.float32)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        scores = vectors @ query_vector
+        by_cat: dict[str, dict] = {}
+        for row, raw_score in zip(gallery, scores):
+            cat_id = row["cat_id"]
+            score = float(raw_score)
+            if cat_id not in by_cat or score > by_cat[cat_id]["score"]:
+                by_cat[cat_id] = {
+                    "cat_id": cat_id,
+                    "score": round(score, 4),
+                    "coat_color": row["coat_color"],
+                    "pattern": row["pattern"],
+                    "review_status": row["review_status"],
+                    "image_url": f"/api/v2/demo/images/{cat_id}",
+                }
         return {"results": sorted(by_cat.values(), key=lambda item: item["score"], reverse=True)[:10],
                 "identity_count": len(by_cat), "purpose": "research_demo_only", "model_version": version}
 
     @router.get("/demo/images/{cat_id}")
     def demo_image(cat_id: str) -> FileResponse:
-        path = gallery_path()
-        if not cat_id.isdigit() or len(cat_id) != 4:
-            raise HTTPException(status_code=404, detail="图片不存在")
-        with np.load(path, allow_pickle=False) as gallery:
-            indices = np.where(gallery["cat_ids"] == cat_id)[0]
-            if len(indices) == 0:
-                raise HTTPException(status_code=404, detail="图片不存在")
-            filename = str(gallery["image_names"][int(indices[0])])
-        if Path(filename).name != filename:
-            raise HTTPException(status_code=404, detail="图片不存在")
-        image = demo_dir / "images" / filename
-        if not image.is_file():
-            raise HTTPException(status_code=404, detail="图片不存在")
-        return FileResponse(image, media_type="image/jpeg")
+        cat = database.get_dataset_cat(cat_id)
+        if cat is None:
+            raise HTTPException(status_code=404, detail="猫不存在")
+        return FileResponse(dataset_image_file(cat["representative_image_id"]), media_type="image/jpeg")
+
+    @router.get("/dataset/images/{image_id}")
+    def dataset_image(image_id: str) -> FileResponse:
+        return FileResponse(dataset_image_file(image_id), media_type="image/jpeg")
+
+    @router.get("/dataset/cats/{cat_id}")
+    def dataset_cat(cat_id: str) -> dict:
+        cat = database.get_dataset_cat(cat_id)
+        if cat is None:
+            raise HTTPException(status_code=404, detail="猫不存在")
+        return {**cat, "images": [f"/api/v2/dataset/images/{item['image_id']}"
+                                for item in database.list_dataset_images(cat_id)]}
 
     @router.post("/reports/lost", status_code=201)
     def create_lost(payload: LostPetCreate, user_id: str = Depends(current_user)) -> dict:
@@ -204,7 +215,7 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             raise HTTPException(status_code=422, detail="首版仅支持猫")
         if len(payload.images) > 5:
             raise HTTPException(status_code=422, detail="每条线索最多上传 5 张图片")
-        return _public(service.create_publication(payload.model_copy(update={"contact": ""}), owner_id=user_id))
+        return _public(service.create_publication(payload.model_copy(update={"contact": _phone(payload.contact)}), owner_id=user_id))
 
     @router.post("/reports/sighting", status_code=201)
     def create_sighting(payload: SightingCreate, user_id: str = Depends(current_user)) -> dict:
@@ -212,7 +223,51 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             raise HTTPException(status_code=422, detail="首版仅支持猫")
         if len(payload.images) > 5:
             raise HTTPException(status_code=422, detail="每条线索最多上传 5 张图片")
-        return _public(service.create_publication(payload.model_copy(update={"contact": ""}), owner_id=user_id))
+        return _public(service.create_publication(payload.model_copy(update={"contact": _phone(payload.contact)}), owner_id=user_id))
+
+    @router.get("/browse")
+    def browse(type: Literal["all", "lost", "sighting", "dataset"] = "all",
+               city: str = "", district: str = "", coat_color: str = "", pattern: str = "",
+               breed: str = "", since: str = "", until: str = "", limit: int = 100,
+               offset: int = 0) -> dict:
+        if limit < 1 or limit > 100 or offset < 0:
+            raise HTTPException(status_code=422, detail="分页参数无效")
+        for date in (since, until):
+            if date:
+                try:
+                    datetime.strptime(date, "%Y-%m-%d")
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail="日期格式应为 YYYY-MM-DD") from exc
+
+        def contains(value: str, selected: str) -> bool:
+            return not selected or selected.strip().casefold() in (value or "").casefold()
+
+        items: list[dict] = []
+        if type != "dataset":
+            for row in database.browse_publications(type):
+                if not (contains(row["event_city"], city) and contains(row["event_district"], district)):
+                    continue
+                if (since and row["event_time"][:10] < since) or (until and row["event_time"][:10] > until):
+                    continue
+                if not all(contains(row["desc"].get(field, ""), selected) for field, selected in
+                           (("coat_color", coat_color), ("pattern", pattern), ("breed", breed))):
+                    continue
+                items.append(_public(row) | {"source_type": "report", "image_count": len(row["images"])})
+        if type in {"all", "dataset"} and not any((city, district, since, until)):
+            for row in database.list_dataset_cats():
+                if not (contains(row["coat_color"], coat_color) and contains(row["pattern"], pattern)
+                        and contains(row["breed"], breed)):
+                    continue
+                items.append({
+                    "id": row["id"], "type": "dataset", "source_type": "dataset", "species": "cat",
+                    "images": [f"/api/v2/dataset/images/{row['representative_image_id']}"],
+                    "desc": {"coat_color": row["coat_color"], "pattern": row["pattern"],
+                             "breed": row["breed"], "size": ""},
+                    "event_city": "", "event_district": "", "event_time": "",
+                    "image_count": row["image_count"], "review_status": row["review_status"],
+                })
+        return {"items": items[offset:offset + limit], "total": len(items),
+                "limit": limit, "offset": offset, "has_more": offset + limit < len(items)}
 
     @router.get("/reports")
     def list_reports(type: str, city: str | None = None, limit: int = 50) -> dict:
@@ -229,6 +284,17 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         if record["status"] != "active":
             raise HTTPException(status_code=404, detail="记录不存在")
         return _public(record)
+
+    @router.get("/reports/{report_type}/{report_id}/phone")
+    def get_phone(report_type: str, report_id: str) -> dict:
+        if report_type not in {"lost", "sighting"}:
+            raise HTTPException(status_code=422, detail="无效记录类型")
+        record = service.get_publication(report_type, report_id)
+        if record["status"] != "active":
+            raise HTTPException(status_code=404, detail="线索不存在")
+        if not record["contact"]:
+            raise HTTPException(status_code=404, detail="发布者尚未填写电话")
+        return {"phone": record["contact"]}
 
     @router.get("/me/reports")
     def my_reports(user_id: str = Depends(current_user)) -> dict:
@@ -247,13 +313,15 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             return _public(current)
         merged = {
             key: current[key]
-            for key in ("species", "type", "images", "desc", "event_city", "event_district", "event_time", "event_lat", "event_lng")
+            for key in ("species", "type", "images", "desc", "event_city", "event_district", "event_time", "event_lat", "event_lng", "contact")
         } | patch.model_dump(exclude_unset=True)
         model = LostPetCreate if report_type == "lost" else SightingCreate
         valid = model.model_validate(merged)
         if len(valid.images) > 5:
             raise HTTPException(status_code=422, detail="每条线索最多上传 5 张图片")
-        return _public(service.update_publication(report_type, report_id, valid, user_id))
+        return _public(service.update_publication(
+            report_type, report_id, valid.model_copy(update={"contact": _phone(valid.contact)}), user_id
+        ))
 
     @router.patch("/reports/{report_type}/{report_id}/status")
     def update_status(report_type: str, report_id: str, payload: StatusPatch, user_id: str = Depends(current_user)) -> dict:
@@ -278,37 +346,6 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             for key in ("species", "type", "images", "desc", "event_city", "event_district", "event_time", "event_lat", "event_lng")
         } | {"top_k": 10})
         return service.search(query, cross_city=expand) | {"scope": "all_cities" if expand else "same_city"}
-
-    @router.post("/contact-requests", status_code=201)
-    def create_contact(payload: ContactRequestCreate, user_id: str = Depends(current_user)) -> dict:
-        target = service.get_publication(payload.target_type, payload.target_id)
-        if target["status"] != "active" or target["owner_user_id"] is None:
-            raise HTTPException(status_code=404, detail="目标记录不可联系")
-        if target["owner_user_id"] == user_id:
-            raise HTTPException(status_code=422, detail="不能联系自己")
-        row = {
-            "id": uuid4().hex,
-            "requester_user_id": user_id,
-            "target_type": payload.target_type,
-            "target_id": payload.target_id,
-            "message": payload.message,
-            "created_at": _now(),
-        }
-        try:
-            database.create_contact_request(row)
-        except sqlite3.IntegrityError as exc:
-            raise HTTPException(status_code=409, detail="已发送过联系请求") from exc
-        return {"id": row["id"], "state": "pending"}
-
-    @router.get("/me/contact-requests")
-    def my_contact_requests(user_id: str = Depends(current_user)) -> dict:
-        return {"items": database.list_contact_requests(user_id)}
-
-    @router.post("/contact-requests/{request_id}/reply")
-    def reply_contact(request_id: str, payload: ContactReply, user_id: str = Depends(current_user)) -> dict:
-        if not database.reply_contact_request(request_id, user_id, payload.reply):
-            raise HTTPException(status_code=404, detail="无权限或请求不存在")
-        return {"state": "replied"}
 
     @router.post("/reports/{report_type}/{report_id}/report", status_code=201)
     def report_content(report_type: str, report_id: str, payload: AbuseReport,

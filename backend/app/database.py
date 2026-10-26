@@ -96,6 +96,28 @@ CREATE TABLE IF NOT EXISTS content_report (
     UNIQUE (reporter_user_id, target_type, target_id)
 );
 
+CREATE TABLE IF NOT EXISTS cat_identity (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    coat_color TEXT NOT NULL DEFAULT '',
+    pattern TEXT NOT NULL DEFAULT '',
+    breed TEXT NOT NULL DEFAULT '',
+    review_status TEXT NOT NULL,
+    image_count INTEGER NOT NULL,
+    representative_image_id TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cat_image (
+    image_id TEXT PRIMARY KEY,
+    cat_id TEXT NOT NULL REFERENCES cat_identity(id) ON DELETE CASCADE,
+    image_path TEXT NOT NULL,
+    source_file TEXT NOT NULL,
+    source_sha256 TEXT NOT NULL,
+    split TEXT NOT NULL,
+    model_version TEXT,
+    vector BLOB
+);
+
 CREATE INDEX IF NOT EXISTS idx_lost_pet_region
 ON lost_pet (species, event_city, event_district);
 
@@ -104,6 +126,9 @@ ON sighting (species, event_city, event_district);
 
 CREATE INDEX IF NOT EXISTS idx_feature_record
 ON feature (record_type, record_id);
+
+CREATE INDEX IF NOT EXISTS idx_cat_image_cat
+ON cat_image (cat_id);
 """
 
 
@@ -194,13 +219,13 @@ class Database:
             )]
             changed = connection.execute(
                 f"""UPDATE {table} SET images = ?, description = ?, event_city = ?, event_district = ?,
-                    event_time = ?, event_lat = ?, event_lng = ?
+                    event_time = ?, event_lat = ?, event_lng = ?, contact = ?
                     WHERE id = ? AND owner_user_id = ? AND status = 'active'""",
                 (
                     json.dumps(record["images"], ensure_ascii=False),
                     json.dumps(record["desc"], ensure_ascii=False),
                     record["event_city"], record["event_district"], record["event_time"],
-                    record["event_lat"], record["event_lng"], record["id"], owner_id,
+                    record["event_lat"], record["event_lng"], record["contact"], record["id"], owner_id,
                 ),
             )
             if changed.rowcount != 1:
@@ -354,6 +379,76 @@ class Database:
                 f"SELECT * FROM {table}{where} ORDER BY created_at DESC LIMIT ?", (*params, limit)
             ).fetchall()
         return [self._decode_record(row) for row in rows]
+
+    def browse_publications(self, record_type: str = "all") -> list[dict]:
+        if record_type not in {"all", "lost", "sighting"}:
+            raise ValueError("非法记录类型")
+        tables = ["lost_pet", "sighting"] if record_type == "all" else ["lost_pet" if record_type == "lost" else "sighting"]
+        records: list[dict] = []
+        with self.connect() as connection:
+            for table in tables:
+                rows = connection.execute(f"SELECT * FROM {table} WHERE status = 'active' ORDER BY created_at DESC").fetchall()
+                records.extend(self._decode_record(row) for row in rows)
+        return sorted(records, key=lambda item: item["created_at"], reverse=True)
+
+    def import_cat_dataset(self, identities: Sequence[dict], images: Sequence[dict]) -> None:
+        ids = [item["id"] for item in identities]
+        if len(ids) != len(set(ids)):
+            raise ValueError("猫身份 ID 重复")
+        with self.connect() as connection:
+            connection.executemany("DELETE FROM cat_identity WHERE id = ?", [(item,) for item in ids])
+            connection.executemany(
+                """INSERT INTO cat_identity
+                   (id, source, coat_color, pattern, breed, review_status, image_count, representative_image_id)
+                   VALUES (:id, :source, :coat_color, :pattern, :breed, :review_status, :image_count, :representative_image_id)""",
+                identities,
+            )
+            connection.executemany(
+                """INSERT INTO cat_image
+                   (image_id, cat_id, image_path, source_file, source_sha256, split, model_version, vector)
+                   VALUES (:image_id, :cat_id, :image_path, :source_file, :source_sha256, :split, :model_version, :vector)""",
+                images,
+            )
+
+    def list_dataset_cats(self) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute("SELECT * FROM cat_identity ORDER BY id").fetchall()
+        return [dict(row) for row in rows]
+
+    def get_dataset_cat(self, cat_id: str) -> dict | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM cat_identity WHERE id = ?", (cat_id,)).fetchone()
+        return dict(row) if row else None
+
+    def get_dataset_image(self, image_id: str) -> dict | None:
+        with self.connect() as connection:
+            row = connection.execute("SELECT image_id, cat_id, image_path FROM cat_image WHERE image_id = ?", (image_id,)).fetchone()
+        return dict(row) if row else None
+
+    def list_dataset_images(self, cat_id: str) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT image_id, image_path, split FROM cat_image WHERE cat_id = ? ORDER BY image_id",
+                (cat_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_dataset_vectors(self, model_version: str) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT i.image_id, i.cat_id, i.vector, c.coat_color, c.pattern, c.review_status
+                   FROM cat_image i JOIN cat_identity c ON c.id = i.cat_id
+                   WHERE i.model_version = ? AND i.vector IS NOT NULL""",
+                (model_version,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def dataset_counts(self) -> dict[str, int]:
+        with self.connect() as connection:
+            cats = connection.execute("SELECT COUNT(*) FROM cat_identity").fetchone()[0]
+            images = connection.execute("SELECT COUNT(*) FROM cat_image").fetchone()[0]
+            vectors = connection.execute("SELECT COUNT(*) FROM cat_image WHERE vector IS NOT NULL").fetchone()[0]
+        return {"identity_count": cats, "image_count": images, "vector_count": vectors}
 
     def set_publication_status(self, table: str, record_id: str, owner_id: str, new_status: str) -> bool:
         self._validate_table(table)

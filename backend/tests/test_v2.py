@@ -29,11 +29,11 @@ def _upload(client, auth: dict[str, str], color=(230, 120, 30)) -> str:
     return response.json()["image_url"]
 
 
-def test_authenticated_cat_reports_and_private_contact(client, upload_image, base_payload):
+def test_authenticated_cat_reports_and_direct_phone(client, upload_image, base_payload):
     finder = _auth(client, "finder_01")
     owner = _auth(client, "owner_01")
     image = _upload(client, finder)
-    sighting = {**base_payload, "species": "cat", "type": "sighting", "images": [image]}
+    sighting = {**base_payload, "species": "cat", "type": "sighting", "images": [image], "contact": "13800138000"}
     created = client.post("/api/v2/reports/sighting", json=sighting, headers=finder)
     assert created.status_code == 201, created.text
     report_id = created.json()["id"]
@@ -45,9 +45,11 @@ def test_authenticated_cat_reports_and_private_contact(client, upload_image, bas
     assert "owner_user_id" not in public.json()
     assert "event_lat" not in public.json()
     assert "event_lng" not in public.json()
+    assert public.json()["has_phone"] is True
+    assert client.get(f"/api/v2/reports/sighting/{report_id}/phone").json() == {"phone": "13800138000"}
 
     query_image = _upload(client, owner)
-    lost = {**base_payload, "species": "cat", "type": "lost", "images": [query_image]}
+    lost = {**base_payload, "species": "cat", "type": "lost", "images": [query_image], "contact": "13800138001"}
     lost_response = client.post("/api/v2/reports/lost", json=lost, headers=owner)
     assert lost_response.status_code == 201, lost_response.text
     matches = client.get(f"/api/v2/reports/lost/{lost_response.json()['id']}/matches", headers=owner)
@@ -66,34 +68,23 @@ def test_authenticated_cat_reports_and_private_contact(client, upload_image, bas
     assert expanded.json()["scope"] == "all_cities"
     assert distant_created.json()["id"] in {item["id"] for item in expanded.json()["results"]}
 
-    message = {"target_type": "sighting", "target_id": report_id, "message": "我认为这是我丢失的猫，可以核对照片吗？"}
-    contact = client.post("/api/v2/contact-requests", json=message, headers=owner)
-    assert contact.status_code == 201, contact.text
-    assert client.post("/api/v2/contact-requests", json=message, headers=owner).status_code == 409
-    reply = client.post(
-        f"/api/v2/contact-requests/{contact.json()['id']}/reply",
-        json={"reply": "请提供猫的正脸照片核对。"},
-        headers=finder,
-    )
-    assert reply.status_code == 200, reply.text
-    inbox = client.get("/api/v2/me/contact-requests", headers=owner)
-    assert inbox.json()["items"][0]["state"] == "replied"
-
     assert client.patch(f"/api/v2/reports/sighting/{report_id}/status", json={"status": "resolved"}, headers=owner).status_code == 404
     assert client.patch(f"/api/v2/reports/sighting/{report_id}/status", json={"status": "resolved"}, headers=finder).status_code == 200
     assert client.get(f"/api/v2/reports/sighting/{report_id}").status_code == 404
+    assert client.get(f"/api/v2/reports/sighting/{report_id}/phone").status_code == 404
     assert client.get("/api/v2/reports?type=sighting&city=上海").json()["items"] == []
 
 
 def test_cat_only_and_auth_required(client, upload_image, base_payload):
     image = upload_image()
-    report = {**base_payload, "type": "lost", "species": "cat", "images": [image]}
+    report = {**base_payload, "type": "lost", "species": "cat", "images": [image], "contact": "13800138002"}
     assert client.post("/api/v2/reports/lost", json=report).status_code == 401
     auth = _auth(client, "owner_02")
     assert client.post("/api/v2/reports/lost", json={**report, "species": "dog"}, headers=auth).status_code == 422
     assert client.post("/api/v2/reports/lost", json=report, headers=auth).status_code == 403
     report["images"] = [_upload(client, auth)]
     assert client.post("/api/v2/reports/lost", json=report, headers=auth).status_code == 201
+    assert client.post("/api/v2/reports/lost", json={**report, "contact": ""}, headers=auth).status_code == 422
 
 
 def test_v2_upload_requires_login(client):
@@ -109,20 +100,22 @@ def test_edit_and_replace_image_keeps_owner_permissions(client, base_payload):
     finder = _auth(client, "editor_finder")
     stranger = _auth(client, "editor_stranger")
     old_image = _upload(client, finder)
-    payload = {**base_payload, "species": "cat", "type": "sighting", "images": [old_image]}
+    payload = {**base_payload, "species": "cat", "type": "sighting", "images": [old_image], "contact": "13800138003"}
     created = client.post("/api/v2/reports/sighting", json=payload, headers=finder)
     assert created.status_code == 201, created.text
     report_id = created.json()["id"]
     url = f"/api/v2/reports/sighting/{report_id}"
     assert client.patch(url, json={"event_district": "新城区"}, headers=stranger).status_code == 403
     new_image = _upload(client, finder, color=(20, 80, 190))
-    edit = client.patch(url, json={"images": [new_image], "event_district": "新城区"}, headers=finder)
+    edit = client.patch(url, json={"images": [new_image], "event_district": "新城区", "contact": "13800138004"}, headers=finder)
     assert edit.status_code == 200, edit.text
     assert edit.json()["images"] == [new_image]
     assert edit.json()["event_district"] == "新城区"
     assert "event_lat" not in edit.json()
     mine = client.get("/api/v2/me/reports", headers=finder).json()["items"][0]
     assert mine["event_lat"] == base_payload["event_lat"]
+    assert mine["contact"] == "13800138004"
+    assert client.get(url + "/phone").json() == {"phone": "13800138004"}
     assert client.patch(url, json={"images": [_upload(client, stranger)]}, headers=finder).status_code == 403
     assert client.patch(url + "/status", json={"status": "resolved"}, headers=finder).status_code == 200
     assert client.patch(url, json={"event_district": "再编辑"}, headers=finder).status_code == 409
@@ -133,7 +126,7 @@ def test_report_and_admin_hide_removes_public_record(client, base_payload):
     reporter = _auth(client, "mod_reporter")
     admin = _auth(client, "mod_admin")
     assert client.app.state.database.set_user_role("mod_admin", "admin")
-    report = {**base_payload, "type": "sighting", "species": "cat", "images": [_upload(client, owner)]}
+    report = {**base_payload, "type": "sighting", "species": "cat", "images": [_upload(client, owner)], "contact": "13800138005"}
     created = client.post("/api/v2/reports/sighting", json=report, headers=owner)
     assert created.status_code == 201, created.text
     target_id = created.json()["id"]
@@ -149,3 +142,34 @@ def test_report_and_admin_hide_removes_public_record(client, base_payload):
     assert reviewed.status_code == 200
     assert client.get(f"/api/v2/reports/sighting/{target_id}").status_code == 404
     assert client.get("/api/v2/reports?type=sighting").json()["items"] == []
+
+
+def test_browse_defaults_to_all_and_supports_more_filters(client, base_payload):
+    database = client.app.state.database
+    identities = [
+        {"id": cat, "source": "Cat Individual Images", "coat_color": color,
+         "pattern": pattern, "breed": "", "review_status": "sample_reviewed",
+         "image_count": 1, "representative_image_id": f"cat50_{cat}_0000"}
+        for cat, color, pattern in (("0001", "黑", "纯色"), ("0002", "橘", "虎斑"))
+    ]
+    images = [
+        {"image_id": f"cat50_{cat}_0000", "cat_id": cat,
+         "image_path": f"images/cat50_{cat}_0000.jpg", "source_file": f"{cat}/photo.jpg",
+         "source_sha256": "sample", "split": "train", "model_version": None, "vector": None}
+        for cat in ("0001", "0002")
+    ]
+    database.import_cat_dataset(identities, images)
+    owner = _auth(client, "browse_owner")
+    report = {**base_payload, "type": "lost", "images": [_upload(client, owner)], "contact": "13800138006"}
+    assert client.post("/api/v2/reports/lost", json=report, headers=owner).status_code == 201
+
+    all_items = client.get("/api/v2/browse").json()
+    assert all_items["total"] == 3
+    assert {item["type"] for item in all_items["items"]} == {"lost", "dataset"}
+    assert all("contact" not in item for item in all_items["items"])
+    assert next(item for item in all_items["items"] if item["type"] == "lost")["has_phone"] is True
+    assert client.get("/api/v2/browse?type=dataset&coat_color=黑").json()["total"] == 1
+    assert client.get("/api/v2/browse?city=上海").json()["total"] == 1
+    assert client.get("/api/v2/browse?since=2026-05-02").json()["total"] == 0
+    page = client.get("/api/v2/browse?limit=1&offset=1").json()
+    assert len(page["items"]) == 1 and page["has_more"] is True

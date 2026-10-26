@@ -123,7 +123,6 @@ class BackendService:
                 raise HTTPException(status_code=409, detail="图片已绑定到其他线索")
 
         updated = current | payload.model_dump()
-        updated["contact"] = ""
         new_paths: list[Path] = []
         features: list[dict] = []
         try:
@@ -234,6 +233,7 @@ class BackendService:
                 "score": round(max(-1.0, min(1.0, image_score)), 4),
                 "rank_score": round(rank_score, 4),
                 "reasons": reasons,
+                "has_phone": bool(candidate["contact"]),
             }
             if payload.event_lat is not None and candidate["event_lat"] is not None:
                 distance = round(
