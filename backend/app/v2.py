@@ -249,6 +249,7 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             return not selected or selected.strip().casefold() in (value or "").casefold()
 
         items: list[dict] = []
+        feature_counts = database.feature_counts(getattr(service.embedder, "version", service.embedder.name))
         for row in database.browse_publications(type):
             if not (contains(row["event_city"], city) and contains(row["event_district"], district)):
                 continue
@@ -257,7 +258,8 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             if not all(contains(row["desc"].get(field, ""), selected) for field, selected in
                        (("coat_color", coat_color), ("pattern", pattern), ("breed", breed))):
                 continue
-            items.append(_public(row) | {"image_count": len(row["images"])})
+            items.append(_public(row) | {"image_count": len(row["images"]),
+                                         "searchable_image_count": feature_counts.get((row["type"], row["id"]), 0)})
         return {"items": items[offset:offset + limit], "total": len(items),
                 "limit": limit, "offset": offset, "has_more": offset + limit < len(items)}
 
@@ -286,7 +288,10 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
             raise HTTPException(status_code=404, detail="线索不存在")
         if not record["contact"]:
             raise HTTPException(status_code=404, detail="发布者尚未填写电话")
-        return {"phone": record["contact"]}
+        result = {"phone": record["contact"]}
+        if record["source_type"] in {"cat50_sample", "hellostreetcat_sample"}:
+            result["is_demo"] = True
+        return result
 
     @router.get("/me/reports")
     def my_reports(user_id: str = Depends(current_user)) -> dict:

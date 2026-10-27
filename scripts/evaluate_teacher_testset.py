@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.embedding import build_embedding_provider  # noqa: E402
+from testset_paths import locate_testset  # noqa: E402
 
 
 def wilson(success: int, count: int) -> list[float] | None:
@@ -41,12 +42,12 @@ def median(values: list[float]) -> float | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=Path, default=ROOT / "dataset_cat50" / "teacher_testset")
+    parser.add_argument("--data", type=Path)
     parser.add_argument("--threshold", type=float, default=0.45)
     args = parser.parse_args()
     if not -1 <= args.threshold <= 1:
         raise SystemExit("阈值必须在 -1 到 1 之间")
-    folder = args.data.resolve()
+    folder = (args.data or locate_testset(ROOT / "dataset_cat50")).resolve()
     with (folder / "manifest.csv").open(encoding="utf-8-sig", newline="") as handle:
         cases = list(csv.DictReader(handle))
     if len({case["image"] for case in cases}) != len(cases):

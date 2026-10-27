@@ -24,11 +24,12 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.config import Settings  # noqa: E402
 from app.database import Database  # noqa: E402
 from app.embedding import build_embedding_provider  # noqa: E402
+from testset_paths import locate_testset  # noqa: E402
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=Path, default=ROOT / "dataset_cat50" / "teacher_testset")
+    parser.add_argument("--data", type=Path)
     parser.add_argument("--database", type=Path, default=Settings.from_env().database_path)
     parser.add_argument("--admin-username", default="admin")
     args = parser.parse_args()
@@ -40,7 +41,7 @@ def main() -> None:
     if not admin or admin["role"] != "admin":
         raise SystemExit("需要先创建管理员账号")
 
-    data_dir = args.data.resolve()
+    data_dir = (args.data or locate_testset(ROOT / "dataset_cat50")).resolve()
     provenance = json.loads((data_dir / "provenance.json").read_text(encoding="utf-8"))
     if "heellostreetcat-individuals" not in provenance["source"]:
         raise ValueError("测试包来源不是预期的 HelloStreetCat 数据集")

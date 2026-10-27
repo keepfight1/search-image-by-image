@@ -9,8 +9,8 @@
 - `POST /api/v2/match/search` 接收当前用户上传的 1–5 张查询照片，先筛选相反类型的活跃线索，再按图片相似分排序；查询不会创建公开线索。城市、区县和外观条件可以留空，日期区间与结果条数可选。
 - RF-DETR Nano 检测猫并裁剪，`pet-recognition-base` 输出 512 维向量；多图取最高相似度，按记录去重，同区和人工毛色/花纹仅作排序加分。模型文件缺失时 ONNX 模式直接启动失败。
 - Cat Individual Images 前 50 个实际存在的个体目录（`0001`–`0051`，缺 `0032`）共 1,487 张；身份标签来自目录，毛色/花纹是本项目的人工抽样标注。图片和模型权重不提交 Git。
-- 50 只研究猫的身份、1,487 张照片元数据和 100 条图库向量保留在研究表；另有 50 条带来源标记的走失**样例线索**、每条 2 张检索图，进入业务表、浏览列表和正常的走失猫匹配流程。统一演示地点为上海市浦东新区，时间为 2026-10-26 12:00；源数据没有真实走失地点、时间或电话。顶部独立演示入口已移除。
-- 可选导入 HelloStreetCat 外部测试图库的 20 只猫作为走失**样例线索**，每只 2 张入库照片；另 40 张同猫照片仍留作查询，10 只库外猫也不入库。样例地点显示为“研究样例 / 非真实地点”，时间是演示值，没有联系人。原数据未提供可用于真实走失线索的地点、时间或毛色标注。
+- 50 只研究猫的身份和 1,487 张照片元数据保留在研究表；50 条带来源标记的走失**样例线索**进入业务表。每条线索仍有 2 张封面照片，执行全量索引脚本后，所有能通过猫检测的目录照片都会参与以图搜图；结果按线索合并，并显示参与比对的照片数。统一演示地点为上海市浦东新区，时间为 2026-10-26 12:00；源数据没有真实走失地点、时间或电话。
+- 可选导入 HelloStreetCat 外部测试图库的 20 只猫作为走失**样例线索**，每只 2 张入库照片；另 40 张同猫照片仍留作查询，10 只库外猫也不入库。样例地点为“研究样例 / 非真实地点”，时间是演示值。原数据未提供可用于真实走失线索的地点、时间或毛色标注。研究样例可生成以 `000` 开头的模拟联系电话；页面明确标注为演示号码，不提供拨号按钮。
 
 项目仍是**本地原型**。目前使用 SQLite 与本地文件、同步提取特征和精确扫描；尚无 PostgreSQL/pgvector、异步任务、限流、正式阈值标定和外部真实场景验收。详见 [实施进度](docs/progress.md)。不要把数据集照片伪装为真实走失或目击记录。
 
@@ -53,15 +53,17 @@ npm run dev
 .\.venv\Scripts\python.exe scripts\import_cat50.py
 .\.venv\Scripts\python.exe scripts\create_admin.py
 .\.venv\Scripts\python.exe scripts\seed_cat50_lost.py --city 上海市 --district 浦东新区 --event-time "2026-10-26 12:00"
+.\.venv\Scripts\python.exe scripts\index_all_cat50_photos.py
+.\.venv\Scripts\python.exe scripts\seed_sample_contacts.py
 .\.venv\Scripts\python.exe scripts\evaluate_cat50.py
 .\.venv\Scripts\python.exe scripts\smoke_onnx_api.py
 ```
 
-输出在未跟踪的 `dataset_cat50/`：按个体生成 `metadata.jsonl`、`summary.json`、整理后的图片、联系表、100 张图的 `demo_gallery.npz` 和 `integration_eval.json`。图库导入脚本会先备份现有 SQLite，再写入独立的 `cat_identity`、`cat_image` 表；种子脚本将每只猫的 2 张图库照片和向量写入 `lost_pet`/`feature`，重复执行不会恢复已删除的样例。运行种子脚本前也应备份 SQLite。标注文件为 [`dataset/first50_labels.csv`](dataset/first50_labels.csv)。42 只为**每只抽看两图**的初步标注，8 只标记 `needs_review`；品种没有可靠依据，全部留空。尚未逐张复核 1,487 张照片。
+输出在未跟踪的 `dataset_cat50/`：按个体生成 `metadata.jsonl`、`summary.json`、整理后的图片、联系表、初始 100 张图的 `demo_gallery.npz` 和 `integration_eval.json`。图库导入脚本会先备份现有 SQLite，再写入独立的 `cat_identity`、`cat_image` 表；种子脚本将每只猫的 2 张初始照片和向量写入 `lost_pet`/`feature`，重复执行不会恢复已删除的样例。全量索引脚本在此基础上为其余可检测照片生成向量，可中断后继续运行；检测失败的明细在本机 `dataset_cat50/full_index_summary.json`。重新运行 `import_cat50.py` 会重建研究表，之后应再次执行全量索引。模拟号码脚本只填充研究样例的空号码，不改动真实用户的电话。标注文件为 [`dataset/first50_labels.csv`](dataset/first50_labels.csv)。42 只为**每只抽看两图**的初步标注，8 只标记 `needs_review`；品种没有可靠依据，全部留空。尚未逐张复核 1,487 张照片。
 
 评估脚本以其中 40 只为图库，取 80 张正查询和另外 10 只猫的 20 张库外查询。这是**接通检查**：预训练模型使用过 Cat Individual Images，图库与查询也可能含同场景连拍，绝不能当作独立准确率或真实寻猫效果。见 [评估与数据说明](docs/data_sources.md)。
 
-课堂展示的可复现测试包与详细结果见 [课堂展示评测报告](docs/课堂展示评测报告.md)。它分别测原 50 猫图库和外部 HelloStreetCat 街猫图库；外部数据的图片与逐张预测只保存在未跟踪的 `dataset_cat50/teacher_testset/`，可直接上传演示的图片在 `dataset_cat50/platform_demo/`。外部测试表现明显弱于同源测试，报告中保留完整结果与限制。
+课堂展示的可复现测试包与详细结果见 [课堂展示评测报告](docs/课堂展示评测报告.md)。它分别测原 50 猫图库和外部 HelloStreetCat 街猫图库；本机外部测试包位于未跟踪的 `dataset_cat50/testset/`（脚本也兼容原名 `teacher_testset/`），可直接上传演示的图片在 `dataset_cat50/platform_demo/`。全量索引后，`platform_demo/positive/` 的 Cat Individual Images 图片本身也已入库，只适合检查网页流程；独立跨来源测试应看 HelloStreetCat 查询。外部测试表现明显弱于同源测试，报告中保留完整结果与限制。
 
 已导入 HelloStreetCat 20 只猫后的**当前混合图库**复测、网页演示步骤与最新指标见 [当前图库演示与测试流程](docs/当前图库演示与测试流程.md)。
 
@@ -69,6 +71,7 @@ npm run dev
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\seed_hellostreetcat_lost.py
+.\.venv\Scripts\python.exe scripts\seed_sample_contacts.py
 ```
 
 脚本只读 `manifest.csv` 中的 `gallery` 照片，重复执行不会重复添加或恢复管理员删除的线索。图片、数据库和向量在 `.gitignore` 排除的本地目录，不随代码推送到 GitHub。导入后网页匹配范围变为 50 只 Cat Individual Images 样例加 20 只 HelloStreetCat 样例及用户线索；原报告的 A/B 数值是**导入前的固定离线协议**，不能直接当作新混合图库的准确率。

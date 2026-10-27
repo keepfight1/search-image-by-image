@@ -161,6 +161,9 @@ class SearchResult(BaseModel):
     reasons: list[str] = Field(default_factory=list)
     has_phone: bool = False
     source_type: str = "user"
+    source_cat_id: str | None = None
+    gallery_image_count: int = 1
+    images: list[str] = Field(default_factory=list)
 
 
 class SearchResponse(BaseModel):

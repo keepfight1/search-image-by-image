@@ -477,6 +477,15 @@ class Database:
             vectors = connection.execute("SELECT COUNT(*) FROM cat_image WHERE vector IS NOT NULL").fetchone()[0]
         return {"identity_count": cats, "image_count": images, "vector_count": vectors}
 
+    def feature_counts(self, model_version: str) -> dict[tuple[str, str], int]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT record_type, record_id, COUNT(*) AS image_count
+                   FROM feature WHERE model_version = ? GROUP BY record_type, record_id""",
+                (model_version,),
+            ).fetchall()
+        return {(row["record_type"], row["record_id"]): row["image_count"] for row in rows}
+
     def set_publication_status(self, table: str, record_id: str, owner_id: str, new_status: str) -> bool:
         self._validate_table(table)
         with self.connect() as connection:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -192,6 +193,7 @@ class BackendService:
             target_table, species="cat", city=None,
             model_version=getattr(self.embedder, "version", self.embedder.name),
         )
+        gallery_counts = Counter(candidate["id"] for candidate in candidates)
 
         def contains(value: str, selected: str) -> bool:
             return not selected or selected.strip().casefold() in (value or "").casefold()
@@ -232,6 +234,9 @@ class BackendService:
                         payload.since, payload.until)) else ["图片相似"],
                     "has_phone": bool(candidate["contact"]),
                     "source_type": candidate["source_type"],
+                    "source_cat_id": candidate["source_cat_id"],
+                    "gallery_image_count": gallery_counts[candidate["id"]],
+                    "images": candidate["images"],
                 }
         results = sorted(by_report.values(), key=lambda item: item["score"], reverse=True)
         return {"results": results[:payload.top_k], "total": len(results),
@@ -254,6 +259,7 @@ class BackendService:
         threshold: float,
     ) -> list[dict]:
         by_report: dict[str, dict] = {}
+        gallery_counts = Counter(candidate["id"] for candidate in candidates)
         for candidate in candidates:
             feature_name = Path(candidate["feature_path"]).name
             if feature_name != candidate["feature_path"]:
@@ -295,6 +301,9 @@ class BackendService:
                 "reasons": reasons,
                 "has_phone": bool(candidate["contact"]),
                 "source_type": candidate["source_type"],
+                "source_cat_id": candidate["source_cat_id"],
+                "gallery_image_count": gallery_counts[candidate["id"]],
+                "images": candidate["images"],
             }
             if payload.event_lat is not None and candidate["event_lat"] is not None:
                 distance = round(

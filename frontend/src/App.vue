@@ -54,7 +54,11 @@
           <button class="primary submit" :disabled="busy">{{ busy ? '正在匹配…' : '上传照片并开始匹配' }}</button>
         </form>
         <details v-if="token && matchableItems.length" class="saved-match"><summary>或者用我已发布的线索匹配</summary><div class="panel match-panel"><label>已发布线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}{{ isSample(item) ? ' · 样例数据' : '' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
-        <section v-if="matchesShown" class="results"><div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'custom' ? '所选筛选条件' : searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="activeReport && searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div><div v-if="!matches.length" class="empty">暂时没有符合条件的候选；可放宽筛选条件后再试。</div><div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }} <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例 · 地点时间为演示值</span></small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button v-if="item.has_phone" class="secondary small" @click="showPhone(item, matchTargetType)">联系发布者</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div></section>
+        <section v-if="matchesShown" class="results">
+          <div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>每只猫的已索引照片都会参与比对，结果按线索合并展示。图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'custom' ? '所选筛选条件' : searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="activeReport && searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div>
+          <div v-if="!matches.length" class="empty">暂时没有符合条件的候选；可放宽筛选条件后再试。</div>
+          <div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }} <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例 · 地点时间为演示值</span></small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }} · 已比对该猫 {{ item.gallery_image_count || 1 }} 张照片</p><button class="secondary small" @click="viewMatchedPhotos(item)">查看该猫照片</button><button v-if="item.has_phone" class="secondary small" @click="showPhone(item, matchTargetType)">{{ isSample(item) ? '查看模拟号码' : '联系发布者' }}</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div>
+        </section>
       </section>
 
       <section v-else-if="page === 'browse'" class="content">
@@ -78,10 +82,10 @@
             <div>
               <small>{{ item.type === 'lost' ? '走失猫' : '发现猫' }} <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例</span></small>
               <h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3>
-              <p>{{ item.desc.pattern || '花纹未知' }} · {{ item.desc.breed || '品种未知' }} · {{ item.image_count }} 张照片</p>
+              <p>{{ item.desc.pattern || '花纹未知' }} · {{ item.desc.breed || '品种未知' }} · {{ item.searchable_image_count || item.image_count }} 张照片参与比对</p>
               <p>{{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}<span v-if="isSample(item)">（演示值）</span></p>
               <button v-if="item.source_cat_id" class="secondary small" @click="viewDatasetCat(item)">查看同一只猫的照片</button>
-              <button v-if="item.has_phone" class="secondary small" @click="showPhone(item, item.type)">联系发布者</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, item.type)">举报</button>
+              <button v-if="item.has_phone" class="secondary small" @click="showPhone(item, item.type)">{{ isSample(item) ? '查看模拟号码' : '联系发布者' }}</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, item.type)">举报</button>
             </div>
           </article>
         </div>
@@ -119,8 +123,8 @@
       </section>
     </main>
     <div v-if="authOpen" class="overlay" @click.self="authOpen = false"><form class="dialog" @submit.prevent="authenticate"><button type="button" class="close" @click="authOpen = false">×</button><span class="eyebrow">寻猫线索</span><h2>{{ registerMode ? '创建账号' : '登录账号' }}</h2><label>用户名<input v-model.trim="auth.username" required minlength="3" autocomplete="username" /></label><label>密码<input v-model="auth.password" type="password" required minlength="8" :autocomplete="registerMode ? 'new-password' : 'current-password'" /></label><button class="primary submit" :disabled="busy">{{ registerMode ? '注册并登录' : '登录' }}</button><button type="button" class="link" @click="registerMode = !registerMode">{{ registerMode ? '已有账号？登录' : '没有账号？注册' }}</button></form></div>
-    <div v-if="phoneValue" class="overlay" @click.self="phoneValue = ''"><div class="dialog"><button type="button" class="close" @click="phoneValue = ''">×</button><span class="eyebrow">联系发布者</span><h2>{{ phoneValue }}</h2><a class="primary phone-link" :href="`tel:${phoneValue}`">拨打电话</a><button class="secondary" @click="phoneValue = ''">关闭</button></div></div>
-    <div v-if="datasetDetail" class="overlay" @click.self="datasetDetail = null"><div class="dialog dataset-dialog"><button type="button" class="close" @click="datasetDetail = null">×</button><span class="eyebrow">{{ datasetDetail.source }} · 样例数据</span><h2>猫 {{ datasetDetail.id }}</h2><p>{{ datasetDetail.coat_color || '毛色待核' }} · {{ datasetDetail.pattern || '花纹待核' }} · {{ datasetDetail.image_count }} 张图片</p><p>原始图片集不含真实走失地点、时间或联系电话，线索中的地点和时间均为演示值。</p><div class="dataset-photos"><img v-for="url in datasetDetail.images" :key="url" :src="url" alt="同一只猫的不同照片" loading="lazy" /></div></div></div>
+    <div v-if="phoneValue" class="overlay" @click.self="phoneValue = ''"><div class="dialog"><button type="button" class="close" @click="phoneValue = ''">×</button><span class="eyebrow">{{ phoneIsDemo ? '模拟联系人号码' : '联系发布者' }}</span><h2>{{ phoneValue }}</h2><p v-if="phoneIsDemo">这是研究样例的演示号码，不能联系真实发布者。</p><a v-else class="primary phone-link" :href="`tel:${phoneValue}`">拨打电话</a><button class="secondary" @click="phoneValue = ''">关闭</button></div></div>
+    <div v-if="datasetDetail" class="overlay" @click.self="datasetDetail = null"><div class="dialog dataset-dialog"><button type="button" class="close" @click="datasetDetail = null">×</button><span class="eyebrow">{{ datasetDetail.source }}{{ datasetDetail.is_sample ? ' · 样例数据' : '' }}</span><h2>猫 {{ datasetDetail.id }}</h2><p>{{ datasetDetail.coat_color || '毛色待核' }} · {{ datasetDetail.pattern || '花纹待核' }} · {{ datasetDetail.image_count }} 张图片</p><p v-if="datasetDetail.searchable_image_count">当前有 {{ datasetDetail.searchable_image_count }} 张照片参与比对。</p><p v-if="datasetDetail.is_sample">原始图片集不含真实走失地点、时间或联系电话，线索中的地点和时间均为演示值。</p><div class="dataset-photos"><img v-for="url in datasetDetail.images" :key="url" :src="url" alt="同一只猫的不同照片" loading="lazy" /></div></div></div>
     <div v-if="reportTarget" class="overlay" @click.self="reportTarget = null"><form class="dialog" @submit.prevent="sendReport"><button type="button" class="close" @click="reportTarget = null">×</button><span class="eyebrow">内容举报</span><h2>举报这条线索</h2><p>请说明虚假、重复或不适宜内容的具体情况。</p><textarea v-model.trim="reportReason" required minlength="10" maxlength="500" rows="5"></textarea><button class="primary submit" :disabled="busy">提交举报</button></form></div>
   </div>
 </template>
@@ -144,7 +148,7 @@ const coatOptions = ['黑', '白', '灰', '橘', '棕', '奶油', '三花', '玳
 const patternOptions = ['纯色', '虎斑', '双色', '三花', '玳瑁', '重点色', '斑点', '其他']
 const browseItems = ref([]), browseTotal = ref(0), browseOffset = ref(0), browseLimit = 100, myItems = ref([])
 const selectedMatchKey = ref(''), matchableItems = computed(() => myItems.value.filter(item => item.status === 'active'))
-const phoneValue = ref(''), datasetDetail = ref(null)
+const phoneValue = ref(''), phoneIsDemo = ref(false), datasetDetail = ref(null)
 const reportTarget = ref(null), reportType = ref(''), reportReason = ref(''), adminReports = ref([]), adminPublications = ref([])
 const adminType = ref('all'), adminStatus = ref('active')
 const filteredAdminPublications = computed(() => adminPublications.value.filter(item =>
@@ -220,20 +224,27 @@ async function loadBrowse(offset = 0) { try { const { data } = await axios.get('
 function resetBrowse() { Object.assign(browseFilters, { type: 'all', city: '', district: '', coat_color: '', pattern: '', breed: '', since: '', until: '' }); loadBrowse(0) }
 async function viewDatasetCat(item) {
   if (item.source_type === 'hellostreetcat_sample') {
-    datasetDetail.value = { source: 'HelloStreetCat', id: item.source_cat_id, coat_color: '', pattern: '', image_count: item.images.length, images: item.images }
+    datasetDetail.value = { source: 'HelloStreetCat', id: item.source_cat_id, coat_color: '', pattern: '', image_count: item.images.length, images: item.images, is_sample: true, searchable_image_count: item.gallery_image_count || item.searchable_image_count }
     return
   }
   try {
     const { data } = await axios.get(`/api/v2/dataset/cats/${item.source_cat_id}`)
-    datasetDetail.value = { ...data, source: 'Cat Individual Images' }
+    datasetDetail.value = { ...data, source: 'Cat Individual Images', is_sample: true, searchable_image_count: item.gallery_image_count || item.searchable_image_count }
   } catch (e) { notice.value = errorText(e) }
+}
+async function viewMatchedPhotos(item) {
+  if (item.source_type === 'cat50_sample') return viewDatasetCat(item)
+  datasetDetail.value = { source: isSample(item) ? sampleSource(item).trim() : '用户发布线索',
+    id: item.source_cat_id || item.id, coat_color: item.desc?.coat_color || '', pattern: item.desc?.pattern || '',
+    image_count: item.images?.length || 1, images: item.images?.length ? item.images : [item.image_url],
+    is_sample: isSample(item), searchable_image_count: item.gallery_image_count }
 }
 async function loadMine() { if (!token.value) return; try { const { data } = await axios.get('/api/v2/me/reports', { headers: headers() }); myItems.value = data.items } catch (e) { notice.value = errorText(e) } }
 async function viewMatches(item) { selectedMatchKey.value = `${item.type}:${item.id}`; page.value = 'match'; busy.value = true; matchesShown.value = false; try { const { data } = await axios.get(`/api/v2/reports/${item.type}/${item.id}/matches`, { headers: headers() }); activeReport.value = { type: item.type, id: item.id }; matches.value = data.results || []; searchScope.value = data.scope || 'same_city'; matchTargetType.value = item.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true; window.scrollTo({ top: 320, behavior: 'smooth' }) } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
 async function runSelectedMatch() { const item = matchableItems.value.find(row => `${row.type}:${row.id}` === selectedMatchKey.value); if (item) await viewMatches(item) }
 async function expandMatches() { if (!activeReport.value) return; try { const { type, id } = activeReport.value; const { data } = await axios.get(`/api/v2/reports/${type}/${id}/matches`, { params: { expand: true }, headers: headers() }); matches.value = data.results || []; searchScope.value = data.scope; notice.value = '已扩大到全部城市' } catch (e) { notice.value = errorText(e) } }
 async function closeReport(item) { try { await axios.patch(`/api/v2/reports/${item.type}/${item.id}/status`, { status: 'resolved' }, { headers: headers() }); item.status = 'resolved'; notice.value = '已标记为解决' } catch (e) { notice.value = errorText(e) } }
-async function showPhone(item, type) { try { const { data } = await axios.get(`/api/v2/reports/${type}/${item.id}/phone`); phoneValue.value = data.phone } catch (e) { notice.value = errorText(e) } }
+async function showPhone(item, type) { try { const { data } = await axios.get(`/api/v2/reports/${type}/${item.id}/phone`); phoneIsDemo.value = !!data.is_demo; phoneValue.value = data.phone } catch (e) { notice.value = errorText(e) } }
 </script>
 
 <style scoped>

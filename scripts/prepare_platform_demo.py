@@ -11,15 +11,18 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.config import Settings  # noqa: E402
+from testset_paths import locate_testset  # noqa: E402
 
 
 def main() -> None:
     prepared = ROOT / "dataset_cat50"
-    external = prepared / "teacher_testset"
+    external = locate_testset(prepared)
     output = prepared / "platform_demo"
     with (external / "manifest.csv").open(encoding="utf-8-sig", newline="") as handle:
         external_rows = list(csv.DictReader(handle))
@@ -29,7 +32,8 @@ def main() -> None:
         cat_id = row["pet_id"].removeprefix("cii_")
         by_cat.setdefault(cat_id, []).append(row)
     connection = sqlite3.connect(Settings.from_env().database_path)
-    gallery_ids = {row[0] for row in connection.execute("SELECT image_id FROM cat_image WHERE vector IS NOT NULL")}
+    with np.load(prepared / "demo_gallery.npz", allow_pickle=False) as original_gallery:
+        gallery_ids = {Path(str(name)).stem for name in original_gallery["image_names"]}
     active_ids = {row[0] for row in connection.execute("SELECT source_cat_id FROM lost_pet WHERE source_type = 'cat50_sample' AND status = 'active'")}
     connection.close()
     eligible = sorted(cat for cat, rows in by_cat.items()

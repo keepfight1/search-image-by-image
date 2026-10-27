@@ -18,11 +18,12 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.config import Settings  # noqa: E402
 from app.embedding import build_embedding_provider  # noqa: E402
 from evaluate_teacher_testset import median, rate  # noqa: E402
+from testset_paths import locate_testset  # noqa: E402
 
 
 def main() -> None:
     prepared = ROOT / "dataset_cat50"
-    external = prepared / "teacher_testset"
+    external = locate_testset(prepared)
     with (external / "manifest.csv").open(encoding="utf-8-sig", newline="") as handle:
         external_rows = list(csv.DictReader(handle))
     records = [json.loads(line) for line in (prepared / "metadata.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -41,6 +42,9 @@ def main() -> None:
            ORDER BY l.source_cat_id, f.image_id""", (model.version,),
     ).fetchall()
     connection.close()
+    with np.load(prepared / "demo_gallery.npz", allow_pickle=False) as original_gallery:
+        original_ids = {Path(str(name)).stem for name in original_gallery["image_names"]}
+    gallery_rows = [row for row in gallery_rows if row["image_id"] in original_ids]
     by_gallery: dict[str, list[np.ndarray]] = defaultdict(list)
     gallery_image_ids = set()
     for row in gallery_rows:
