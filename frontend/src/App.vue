@@ -49,20 +49,20 @@
           </div>
           <label class="upload match-upload">查询照片 * <small>1–5 张 JPG/PNG，每张不超过 5MB。正脸、侧面和全身照可一起上传。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectMatchFiles" /></label>
           <div v-if="matchPreviews.length" class="previews"><div v-for="(src, i) in matchPreviews" :key="src"><img :src="src" :alt="`查询照片 ${i + 1}`" /><button type="button" @click="removeMatchFile(i)">×</button></div></div>
-          <p class="tip">筛选条件用于限制候选范围；相似分只是排序依据，样例线索的地点和时间是演示值。</p>
+          <p class="tip">筛选条件用于限制候选范围；相似分只是排序依据。</p>
           <button type="button" class="secondary match-reset" @click="resetMatchFilters">清空筛选条件</button>
           <button class="primary submit" :disabled="busy">{{ busy ? '正在匹配…' : '上传照片并开始匹配' }}</button>
         </form>
-        <details v-if="token && matchableItems.length" class="saved-match"><summary>或者用我已发布的线索匹配</summary><div class="panel match-panel"><label>已发布线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}{{ isSample(item) ? ' · 样例数据' : '' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
+        <details v-if="token && matchableItems.length" class="saved-match"><summary>或者用我已发布的线索匹配</summary><div class="panel match-panel"><label>已发布线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.desc.coat_color || '毛色未知' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
         <section v-if="matchesShown" class="results">
           <div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>每只猫的已索引照片都会参与比对，结果按线索合并展示。图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'custom' ? '所选筛选条件' : searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="activeReport && searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div>
           <div v-if="!matches.length" class="empty">暂时没有符合条件的候选；可放宽筛选条件后再试。</div>
-          <div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><small>{{ item.city }} {{ item.district }} · {{ item.event_time }} <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例 · 地点时间为演示值</span></small><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.reasons.join(' · ') }}</p><p>图像相似分 {{ item.score.toFixed(3) }} · 已比对该猫 {{ item.gallery_image_count || 1 }} 张照片</p><button class="secondary small" @click="viewMatchedPhotos(item)">查看该猫照片</button><button v-if="item.has_phone" class="secondary small" @click="showPhone(item, matchTargetType)">{{ isSample(item) ? '查看模拟号码' : '联系发布者' }}</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div>
+          <div v-else class="result-grid"><article v-for="item in matches" :key="item.id" class="result"><img :src="item.image_url" alt="候选猫照片" /><div><h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3><p>{{ item.desc.pattern || '花纹未知' }} · {{ item.desc.breed || '品种未知' }}</p><p>图像相似分 {{ item.score.toFixed(3) }}</p><button class="secondary small" @click="openDetails(item, matchTargetType)">查看详细信息</button><button class="link" @click="flag(item, matchTargetType)">举报</button></div></article></div>
         </section>
       </section>
 
       <section v-else-if="page === 'browse'" class="content">
-        <div class="heading"><span>全部信息</span><h2>浏览猫咪与寻猫线索</h2><p>默认显示全部走失与发现线索。标为“样例数据”的猫来自 Cat Individual Images 或 HelloStreetCat 研究图片库，地点和时间仅为演示值，并非真实走失记录。</p></div>
+        <div class="heading"><span>全部信息</span><h2>浏览猫咪与寻猫线索</h2><p>默认显示全部走失与发现线索，可按条件筛选并查看完整资料。</p></div>
         <div class="browse-filters panel">
           <label>信息类型<select v-model="browseFilters.type"><option value="all">全部</option><option value="lost">走失猫</option><option value="sighting">发现猫</option></select></label>
           <label>城市<input v-model.trim="browseFilters.city" placeholder="全部城市" /></label>
@@ -80,12 +80,10 @@
           <article v-for="item in browseItems" :key="`${item.type}-${item.id}`" class="result">
             <img :src="item.images[0]" alt="猫照片" loading="lazy" />
             <div>
-              <small>{{ item.type === 'lost' ? '走失猫' : '发现猫' }} <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例</span></small>
+              <small>{{ item.type === 'lost' ? '走失猫' : '发现猫' }}</small>
               <h3>{{ item.desc.coat_color || '毛色未知' }}的猫</h3>
-              <p>{{ item.desc.pattern || '花纹未知' }} · {{ item.desc.breed || '品种未知' }} · {{ item.searchable_image_count || item.image_count }} 张照片参与比对</p>
-              <p>{{ item.event_city }} {{ item.event_district }} · {{ item.event_time }}<span v-if="isSample(item)">（演示值）</span></p>
-              <button v-if="item.source_cat_id" class="secondary small" @click="viewDatasetCat(item)">查看同一只猫的照片</button>
-              <button v-if="item.has_phone" class="secondary small" @click="showPhone(item, item.type)">{{ isSample(item) ? '查看模拟号码' : '联系发布者' }}</button><small v-else>{{ isSample(item) ? '样例数据无联系人' : '发布者未留电话' }}</small><button class="link" @click="flag(item, item.type)">举报</button>
+              <p>{{ item.desc.pattern || '花纹未知' }} · {{ item.desc.breed || '品种未知' }}</p>
+              <button class="secondary small" @click="openDetails(item, item.type)">查看详细信息</button><button class="link" @click="flag(item, item.type)">举报</button>
             </div>
           </article>
         </div>
@@ -99,8 +97,8 @@
         <div v-else class="my-list">
           <article v-for="item in myItems" :key="item.id" class="my-item">
             <img :src="item.images[0]" alt="猫照片" />
-            <div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }}</strong><span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例</span><p>{{ item.event_time }} · {{ item.status }}</p><p>电话：{{ item.contact || (isSample(item) ? '样例数据无联系人' : '未填写，请编辑补充') }}</p></div>
-            <div v-if="!isSample(item)" class="my-actions"><button v-if="item.status === 'active'" class="secondary small" @click="startEdit(item)">编辑/补图</button><button v-if="item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div>
+            <div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.desc.coat_color || '毛色未知' }}</strong><p>{{ item.status }}</p></div>
+            <div class="my-actions"><button class="secondary small" @click="openDetails(item, item.type)">查看详细信息</button><button v-if="!isSample(item) && item.status === 'active'" class="secondary small" @click="startEdit(item)">编辑/补图</button><button v-if="!isSample(item) && item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="!isSample(item) && item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div>
           </article>
         </div>
       </section>
@@ -110,8 +108,8 @@
         <div v-if="!filteredAdminPublications.length" class="empty">暂无符合条件的线索。</div>
         <article v-for="item in filteredAdminPublications" :key="`${item.type}-${item.id}`" class="my-item admin-item">
           <img :src="item.images[0]" alt="猫照片" loading="lazy" />
-          <div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.event_city }} {{ item.event_district }}</strong> <span v-if="isSample(item)" class="sample-badge">{{ sampleSource(item) }}样例</span><p>{{ item.event_time }} · {{ item.status }} · {{ item.id }}</p></div>
-          <button v-if="item.status !== 'deleted'" class="secondary small delete-button" @click="deletePublication(item)">删除线索</button>
+          <div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.desc.coat_color || '毛色未知' }}</strong><p>{{ item.status }} · {{ item.id }}</p></div>
+          <button class="secondary small" @click="openDetails(item, item.type)">查看详细信息</button><button v-if="item.status !== 'deleted'" class="secondary small delete-button" @click="deletePublication(item)">删除线索</button>
         </article>
         <div class="heading admin-reports-heading"><h2>用户举报</h2><p>审核举报并隐藏不适宜或虚假的线索。</p></div>
         <div v-if="!adminReports.length" class="empty">暂无举报。</div>
@@ -123,8 +121,28 @@
       </section>
     </main>
     <div v-if="authOpen" class="overlay" @click.self="authOpen = false"><form class="dialog" @submit.prevent="authenticate"><button type="button" class="close" @click="authOpen = false">×</button><span class="eyebrow">寻猫线索</span><h2>{{ registerMode ? '创建账号' : '登录账号' }}</h2><label>用户名<input v-model.trim="auth.username" required minlength="3" autocomplete="username" /></label><label>密码<input v-model="auth.password" type="password" required minlength="8" :autocomplete="registerMode ? 'new-password' : 'current-password'" /></label><button class="primary submit" :disabled="busy">{{ registerMode ? '注册并登录' : '登录' }}</button><button type="button" class="link" @click="registerMode = !registerMode">{{ registerMode ? '已有账号？登录' : '没有账号？注册' }}</button></form></div>
-    <div v-if="phoneValue" class="overlay" @click.self="phoneValue = ''"><div class="dialog"><button type="button" class="close" @click="phoneValue = ''">×</button><span class="eyebrow">{{ phoneIsDemo ? '模拟联系人号码' : '联系发布者' }}</span><h2>{{ phoneValue }}</h2><p v-if="phoneIsDemo">这是研究样例的演示号码，不能联系真实发布者。</p><a v-else class="primary phone-link" :href="`tel:${phoneValue}`">拨打电话</a><button class="secondary" @click="phoneValue = ''">关闭</button></div></div>
-    <div v-if="datasetDetail" class="overlay" @click.self="datasetDetail = null"><div class="dialog dataset-dialog"><button type="button" class="close" @click="datasetDetail = null">×</button><span class="eyebrow">{{ datasetDetail.source }}{{ datasetDetail.is_sample ? ' · 样例数据' : '' }}</span><h2>猫 {{ datasetDetail.id }}</h2><p>{{ datasetDetail.coat_color || '毛色待核' }} · {{ datasetDetail.pattern || '花纹待核' }} · {{ datasetDetail.image_count }} 张图片</p><p v-if="datasetDetail.searchable_image_count">当前有 {{ datasetDetail.searchable_image_count }} 张照片参与比对。</p><p v-if="datasetDetail.is_sample">原始图片集不含真实走失地点、时间或联系电话，线索中的地点和时间均为演示值。</p><div class="dataset-photos"><img v-for="url in datasetDetail.images" :key="url" :src="url" alt="同一只猫的不同照片" loading="lazy" /></div></div></div>
+    <div v-if="detailItem" class="overlay" @click.self="detailItem = null">
+      <div class="dialog detail-dialog">
+        <button type="button" class="close" @click="detailItem = null">×</button>
+        <span class="eyebrow">{{ detailItem.type === 'lost' ? '走失猫信息' : '发现猫信息' }}</span>
+        <h2>{{ detailItem.desc.coat_color || '毛色未知' }}的猫</h2>
+        <p v-if="detailLoading">正在加载详细信息…</p>
+        <div class="detail-grid">
+          <div><small>所在地区</small><strong>{{ detailItem.city || '未填写' }} {{ detailItem.district || '' }}</strong></div>
+          <div><small>{{ detailItem.type === 'lost' ? '最后见到时间' : '发现时间' }}</small><strong>{{ detailItem.event_time || '未填写' }}</strong></div>
+          <div><small>毛色</small><strong>{{ detailItem.desc.coat_color || '未知' }}</strong></div>
+          <div><small>花纹</small><strong>{{ detailItem.desc.pattern || '未知' }}</strong></div>
+          <div><small>品种</small><strong>{{ detailItem.desc.breed || '未知' }}</strong></div>
+          <div><small>体型</small><strong>{{ detailItem.desc.size || '未知' }}</strong></div>
+          <div><small>联系电话</small><strong>{{ detailItem.phone || '未填写' }}</strong></div>
+          <div><small>参与比对照片</small><strong>{{ detailItem.searchable_image_count || detailItem.images.length }} 张</strong></div>
+          <div v-if="detailItem.score !== null"><small>图像相似分</small><strong>{{ detailItem.score.toFixed(3) }}</strong></div>
+        </div>
+        <p v-if="detailItem.reasons.length">匹配依据：{{ detailItem.reasons.join(' · ') }}</p>
+        <div class="dataset-photos"><img v-for="url in detailItem.images" :key="url" :src="url" alt="猫的照片" loading="lazy" /></div>
+        <button class="secondary" @click="detailItem = null">关闭</button>
+      </div>
+    </div>
     <div v-if="reportTarget" class="overlay" @click.self="reportTarget = null"><form class="dialog" @submit.prevent="sendReport"><button type="button" class="close" @click="reportTarget = null">×</button><span class="eyebrow">内容举报</span><h2>举报这条线索</h2><p>请说明虚假、重复或不适宜内容的具体情况。</p><textarea v-model.trim="reportReason" required minlength="10" maxlength="500" rows="5"></textarea><button class="primary submit" :disabled="busy">提交举报</button></form></div>
   </div>
 </template>
@@ -148,7 +166,7 @@ const coatOptions = ['黑', '白', '灰', '橘', '棕', '奶油', '三花', '玳
 const patternOptions = ['纯色', '虎斑', '双色', '三花', '玳瑁', '重点色', '斑点', '其他']
 const browseItems = ref([]), browseTotal = ref(0), browseOffset = ref(0), browseLimit = 100, myItems = ref([])
 const selectedMatchKey = ref(''), matchableItems = computed(() => myItems.value.filter(item => item.status === 'active'))
-const phoneValue = ref(''), phoneIsDemo = ref(false), datasetDetail = ref(null)
+const detailItem = ref(null), detailLoading = ref(false)
 const reportTarget = ref(null), reportType = ref(''), reportReason = ref(''), adminReports = ref([]), adminPublications = ref([])
 const adminType = ref('all'), adminStatus = ref('active')
 const filteredAdminPublications = computed(() => adminPublications.value.filter(item =>
@@ -157,7 +175,6 @@ const filteredAdminPublications = computed(() => adminPublications.value.filter(
 const headers = () => ({ Authorization: `Bearer ${token.value}` })
 const errorText = e => { const detail = e.response?.data?.detail; return typeof detail === 'string' ? detail : e.message || '请求失败' }
 const isSample = item => ['cat50_sample', 'hellostreetcat_sample'].includes(item.source_type)
-const sampleSource = item => item.source_type === 'hellostreetcat_sample' ? 'HelloStreetCat ' : 'Cat Individual Images '
 function choose(type) { editingReport.value = null; existingImages.value = []; previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []; Object.assign(form, { type, event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } }); matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
 function startEdit(item) { editingReport.value = { type: item.type, id: item.id }; existingImages.value = [...item.images]; previews.value.forEach(URL.revokeObjectURL); files.value = []; previews.value = []; form.type = item.type; form.event_city = item.event_city; form.event_district = item.event_district; form.event_time = item.event_time.replace(' ', 'T'); form.event_lat = item.event_lat ?? null; form.event_lng = item.event_lng ?? null; form.contact = item.contact || ''; form.desc = { ...item.desc }; matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 280, behavior: 'smooth' }) }
 function logout() { token.value = ''; username.value = ''; role.value = 'user'; matchImageUrls.value = []; myItems.value = []; matchesShown.value = false; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); localStorage.removeItem('cat_role'); page.value = 'publish'; notice.value = '已退出登录' }
@@ -222,29 +239,35 @@ async function deletePublication(item) { if (!window.confirm(`确定删除这条
 async function moderate(item, action) { try { const { data } = await axios.patch(`/api/v2/admin/reports/${item.id}`, { action }, { headers: headers() }); item.state = data.state; notice.value = action === 'hide' ? '线索已隐藏' : '举报已驳回' } catch (e) { notice.value = errorText(e) } }
 async function loadBrowse(offset = 0) { try { const { data } = await axios.get('/api/v2/browse', { params: { ...browseFilters, limit: browseLimit, offset } }); browseItems.value = data.items; browseTotal.value = data.total; browseOffset.value = offset } catch (e) { notice.value = errorText(e) } }
 function resetBrowse() { Object.assign(browseFilters, { type: 'all', city: '', district: '', coat_color: '', pattern: '', breed: '', since: '', until: '' }); loadBrowse(0) }
-async function viewDatasetCat(item) {
-  if (item.source_type === 'hellostreetcat_sample') {
-    datasetDetail.value = { source: 'HelloStreetCat', id: item.source_cat_id, coat_color: '', pattern: '', image_count: item.images.length, images: item.images, is_sample: true, searchable_image_count: item.gallery_image_count || item.searchable_image_count }
-    return
+async function openDetails(item, type) {
+  detailItem.value = {
+    id: item.id, type, desc: { coat_color: '', pattern: '', breed: '', size: '', ...(item.desc || {}) },
+    city: item.event_city ?? item.city ?? '', district: item.event_district ?? item.district ?? '',
+    event_time: item.event_time || '', phone: item.contact || '', score: typeof item.score === 'number' ? item.score : null,
+    reasons: item.reasons || [], images: item.images?.length ? [...item.images] : [item.image_url].filter(Boolean),
+    searchable_image_count: item.gallery_image_count || item.searchable_image_count || item.image_count || 0,
   }
+  detailLoading.value = true
   try {
-    const { data } = await axios.get(`/api/v2/dataset/cats/${item.source_cat_id}`)
-    datasetDetail.value = { ...data, source: 'Cat Individual Images', is_sample: true, searchable_image_count: item.gallery_image_count || item.searchable_image_count }
-  } catch (e) { notice.value = errorText(e) }
-}
-async function viewMatchedPhotos(item) {
-  if (item.source_type === 'cat50_sample') return viewDatasetCat(item)
-  datasetDetail.value = { source: isSample(item) ? sampleSource(item).trim() : '用户发布线索',
-    id: item.source_cat_id || item.id, coat_color: item.desc?.coat_color || '', pattern: item.desc?.pattern || '',
-    image_count: item.images?.length || 1, images: item.images?.length ? item.images : [item.image_url],
-    is_sample: isSample(item), searchable_image_count: item.gallery_image_count }
+    const requests = []
+    if (item.source_type === 'cat50_sample' && item.source_cat_id) {
+      requests.push(axios.get(`/api/v2/dataset/cats/${item.source_cat_id}`).then(({ data }) => {
+        if (detailItem.value?.id === item.id) detailItem.value.images = data.images || detailItem.value.images
+      }))
+    }
+    if (item.has_phone) {
+      requests.push(axios.get(`/api/v2/reports/${type}/${item.id}/phone`).then(({ data }) => {
+        if (detailItem.value?.id === item.id) detailItem.value.phone = data.phone || ''
+      }))
+    }
+    await Promise.all(requests)
+  } catch (e) { notice.value = errorText(e) } finally { detailLoading.value = false }
 }
 async function loadMine() { if (!token.value) return; try { const { data } = await axios.get('/api/v2/me/reports', { headers: headers() }); myItems.value = data.items } catch (e) { notice.value = errorText(e) } }
 async function viewMatches(item) { selectedMatchKey.value = `${item.type}:${item.id}`; page.value = 'match'; busy.value = true; matchesShown.value = false; try { const { data } = await axios.get(`/api/v2/reports/${item.type}/${item.id}/matches`, { headers: headers() }); activeReport.value = { type: item.type, id: item.id }; matches.value = data.results || []; searchScope.value = data.scope || 'same_city'; matchTargetType.value = item.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true; window.scrollTo({ top: 320, behavior: 'smooth' }) } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
 async function runSelectedMatch() { const item = matchableItems.value.find(row => `${row.type}:${row.id}` === selectedMatchKey.value); if (item) await viewMatches(item) }
 async function expandMatches() { if (!activeReport.value) return; try { const { type, id } = activeReport.value; const { data } = await axios.get(`/api/v2/reports/${type}/${id}/matches`, { params: { expand: true }, headers: headers() }); matches.value = data.results || []; searchScope.value = data.scope; notice.value = '已扩大到全部城市' } catch (e) { notice.value = errorText(e) } }
 async function closeReport(item) { try { await axios.patch(`/api/v2/reports/${item.type}/${item.id}/status`, { status: 'resolved' }, { headers: headers() }); item.status = 'resolved'; notice.value = '已标记为解决' } catch (e) { notice.value = errorText(e) } }
-async function showPhone(item, type) { try { const { data } = await axios.get(`/api/v2/reports/${type}/${item.id}/phone`); phoneIsDemo.value = !!data.is_demo; phoneValue.value = data.phone } catch (e) { notice.value = errorText(e) } }
 </script>
 
 <style scoped>
@@ -257,7 +280,6 @@ async function showPhone(item, type) { try { const { data } = await axios.get(`/
 .results,.inbox { margin-top: 48px; } .result-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .result { display: flex; gap: 15px; border: 1px solid #e3e9e0; border-radius: 15px; background: white; padding: 13px; } .result > img { width: 142px; height: 155px; border-radius: 9px; object-fit: cover; } .result p,.result small { color: #718075; font-size: 13px; margin: 7px 0; } .empty { background: white; border: 1px solid #e3e9e0; border-radius: 15px; padding: 35px; text-align: center; color: #7d8b80; } .filters { display: flex; gap: 10px; margin-bottom: 20px; max-width: 590px; } .filters select { width: 155px; }
 .my-list { display: grid; gap: 12px; } .my-item,.message { border: 1px solid #e3e9e0; background: white; border-radius: 13px; padding: 12px; } .my-item { display: flex; align-items: center; gap: 16px; } .my-item img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; } .my-item p { color: #7a897d; margin: 7px 0; } .my-actions { margin-left: auto; display: grid; gap: 6px; } .message { margin: 10px 0; } .message small { color: #7a897d; } .message > div { display: flex; gap: 8px; margin-top: 12px; }
 .overlay { position: fixed; inset: 0; background: #112919a6; z-index: 10; display: grid; place-items: center; padding: 20px; } .dialog { position: relative; width: min(440px,100%); display: grid; gap: 15px; } .dialog h2 { margin: 0; } .dialog p { color: #718075; margin: 0; } .close { position: absolute; right: 14px; top: 10px; border: 0; background: none; font-size: 28px; }
-.sample-badge { display: inline-block; border-radius: 20px; background: #fff0cb; color: #845b0b; padding: 3px 8px; font-size: 12px; font-weight: 700; }
 .match-panel { display: flex; gap: 15px; align-items: end; max-width: 760px; } .match-panel label { flex: 1; }
 .match-upload { margin-top: 22px; } .match-reset { margin: 6px 0 12px; } .saved-match { margin-top: 25px; } .saved-match summary { cursor: pointer; color: #267a47; font-weight: 700; margin-bottom: 12px; }
 .admin-toolbar { display: flex; gap: 12px; align-items: end; margin-bottom: 18px; flex-wrap: wrap; } .admin-toolbar label { min-width: 160px; } .admin-item { margin-bottom: 10px; } .delete-button { margin-left: auto; border-color: #b84c43; color: #a33b31; } .admin-reports-heading { margin-top: 40px; }
@@ -265,11 +287,13 @@ async function showPhone(item, type) { try { const { data } = await axios.get(`/
 .filter-actions { display: flex; align-items: end; gap: 8px; }
 .browse-count { color: #65786a; margin: 10px 0 18px; }
 .pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; }
-.phone-link { display: block; text-align: center; text-decoration: none; }
-.dataset-dialog { width: min(760px, 100%); max-height: 86vh; overflow: auto; }
+.detail-dialog { width: min(800px, 100%); max-height: 88vh; overflow: auto; }
+.detail-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.detail-grid > div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: #f5f8f3; }
+.detail-grid small { color: #7a897d; }
 .dataset-photos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .dataset-photos img { width: 100%; height: 135px; object-fit: cover; border-radius: 8px; }
 @media(max-width:900px){ .browse-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media(max-width:600px){ .browse-filters { grid-template-columns: 1fr; } .dataset-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media(max-width:600px){ .browse-filters,.detail-grid { grid-template-columns: 1fr; } .dataset-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width:750px){ .topbar { flex-wrap: wrap; padding: 16px; } nav { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 3px; } nav button { font-size: 13px; } main { padding: 0 16px 60px; } .hero { padding: 34px 25px; } .grid,.result-grid { grid-template-columns: 1fr; } .location,.match-panel { flex-wrap: wrap; } .switch { flex-wrap: wrap; } .result > img { width: 110px; height: 130px; } .my-item { flex-wrap: wrap; } .my-actions { margin-left: 0; display: flex; width: 100%; } }
 </style>
