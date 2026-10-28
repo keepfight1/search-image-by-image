@@ -17,7 +17,10 @@ def main() -> None:
     database.initialize()
     with database.connect() as connection:
         rows = connection.execute(
-            """SELECT id, contact FROM lost_pet
+            """SELECT id, contact, 'lost_pet' AS table_name, source_type, source_cat_id FROM lost_pet
+               WHERE source_type IN ('cat50_sample', 'hellostreetcat_sample')
+               UNION ALL
+               SELECT id, contact, 'sighting' AS table_name, source_type, source_cat_id FROM sighting
                WHERE source_type IN ('cat50_sample', 'hellostreetcat_sample')
                ORDER BY source_type, source_cat_id"""
         ).fetchall()
@@ -34,7 +37,9 @@ def main() -> None:
                 number += 1
                 if phone not in used:
                     break
-            connection.execute("UPDATE lost_pet SET contact = ? WHERE id = ?", (phone, row["id"]))
+            if row["table_name"] not in {"lost_pet", "sighting"}:
+                raise ValueError("非法线索表")
+            connection.execute(f"UPDATE {row['table_name']} SET contact = ? WHERE id = ?", (phone, row["id"]))
             used.add(phone)
             assigned += 1
     print(f"新增 {assigned} 个以 000 开头的演示号码；已有号码未修改")

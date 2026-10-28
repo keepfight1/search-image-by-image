@@ -33,15 +33,15 @@ def main() -> None:
         connection.row_factory = sqlite3.Row
         gallery_rows = connection.execute(
             """SELECT l.id AS report_id, l.source_type, f.feature_path, f.image_id
-               FROM lost_pet l JOIN feature f ON f.record_id = l.id AND f.record_type = 'lost'
+               FROM sighting l JOIN feature f ON f.record_id = l.id AND f.record_type = 'sighting'
                WHERE l.status = 'active' AND f.model_version = ?
                ORDER BY l.id, f.image_id""", (model.version,),
         ).fetchall()
         report_counts = [dict(row) for row in connection.execute(
-            "SELECT source_type, COUNT(*) AS count FROM lost_pet WHERE status = 'active' GROUP BY source_type"
+            "SELECT source_type, COUNT(*) AS count FROM sighting WHERE status = 'active' GROUP BY source_type"
         )]
     if not gallery_rows:
-        raise RuntimeError("当前没有可检索的走失线索")
+        raise RuntimeError("当前没有可检索的发现线索")
     by_report: dict[str, list[np.ndarray]] = defaultdict(list)
     image_ids_by_report: dict[str, list[str]] = defaultdict(list)
     for row in gallery_rows:
@@ -131,7 +131,7 @@ def main() -> None:
                 "recall_at_5_threshold_045": rate(recall5, len(rows)),
                 "true_score_median": median([float(row["true_score"]) for row in rows if row["true_score"] != ""])}
 
-    summary = {"protocol": "All active lost reports with current model version, no metadata filters; exact CII query image excluded from ranking",
+    summary = {"protocol": "Lost-cat queries against all active sighting reports with current model version and no metadata filters; exact CII query image excluded from ranking",
                "model_version": model.version, "threshold": 0.45, "gallery_reports_by_source": report_counts,
                "gallery_reports_with_features": len(labels), "gallery_vectors": len(gallery_rows),
                "cii_positive": group_metrics("cii_positive"),

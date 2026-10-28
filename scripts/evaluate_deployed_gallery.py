@@ -36,8 +36,8 @@ def main() -> None:
     connection = sqlite3.connect(settings.database_path)
     connection.row_factory = sqlite3.Row
     gallery_rows = connection.execute(
-        """SELECT l.source_cat_id, f.feature_path, f.image_id FROM lost_pet l
-           JOIN feature f ON f.record_id = l.id AND f.record_type = 'lost'
+        """SELECT l.source_cat_id, f.feature_path, f.image_id FROM sighting l
+           JOIN feature f ON f.record_id = l.id AND f.record_type = 'sighting'
            WHERE l.source_type = 'cat50_sample' AND l.status = 'active' AND f.model_version = ?
            ORDER BY l.source_cat_id, f.image_id""", (model.version,),
     ).fetchall()

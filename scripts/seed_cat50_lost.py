@@ -1,4 +1,7 @@
-"""Place the 50 research cats in the lost-report workflow as marked sample records."""
+"""Place the 50 research cats in the found-sighting gallery as sample records.
+
+The filename is retained for compatibility with existing local setup commands.
+"""
 
 from __future__ import annotations
 
@@ -42,7 +45,7 @@ def main() -> None:
     inserted = 0
     for cat in cats:
         report_id = f"cat50-lost-{cat['id']}"
-        if database.get_publication("lost_pet", report_id):
+        if database.get_publication("sighting", report_id):
             continue  # Respect edits or administrator deletion on repeat runs.
         with database.connect() as connection:
             photos = connection.execute(
@@ -68,15 +71,15 @@ def main() -> None:
             vector = np.frombuffer(photo["vector"], dtype=np.float16).astype(np.float32)
             np.save(settings.feature_dir / feature_name, vector, allow_pickle=False)
             images.append(url)
-            features.append((photo["image_id"], url, "lost", report_id, feature_name, photo["model_version"]))
+            features.append((photo["image_id"], url, "sighting", report_id, feature_name, photo["model_version"]))
         description = {"coat_color": cat["coat_color"], "pattern": cat["pattern"],
                        "breed": cat["breed"], "size": ""}
         with database.connect() as connection:
             connection.execute(
-                """INSERT INTO lost_pet
+                """INSERT INTO sighting
                 (id, species, type, images, description, event_city, event_district, event_time,
                  contact, created_at, owner_user_id, status, source_type, source_cat_id)
-                VALUES (?, 'cat', 'lost', ?, ?, ?, ?, ?, '', ?, ?, 'active', 'cat50_sample', ?)""",
+                VALUES (?, 'cat', 'sighting', ?, ?, ?, ?, ?, '', ?, ?, 'active', 'cat50_sample', ?)""",
                 (report_id, json.dumps(images), json.dumps(description, ensure_ascii=False),
                  args.city, args.district, args.event_time, now, admin["id"], cat["id"]),
             )
@@ -89,7 +92,7 @@ def main() -> None:
                 [(url, admin["id"], now) for url in images],
             )
         inserted += 1
-    print(f"已新增 {inserted} 条标记为样例的走失线索；统一地点 {args.city}{args.district}，时间 {args.event_time}")
+    print(f"已新增 {inserted} 条标记为样例的发现线索；统一地点 {args.city}{args.district}，时间 {args.event_time}")
 
 
 if __name__ == "__main__":

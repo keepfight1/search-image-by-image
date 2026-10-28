@@ -63,7 +63,7 @@ def main() -> None:
     failed_images = []
     for identity_id, photos in gallery.items():
         report_id = f"hsc-lost-{identity_id}"
-        if database.get_publication("lost_pet", report_id):
+        if database.get_publication("sighting", report_id):
             skipped += 1  # Do not restore a report deleted by the administrator.
             continue
         prepared = []
@@ -100,10 +100,10 @@ def main() -> None:
             images = [item[3] for item in prepared]
             with database.connect() as connection:
                 connection.execute(
-                    """INSERT INTO lost_pet
+                    """INSERT INTO sighting
                     (id, species, type, images, description, event_city, event_district, event_time,
                      contact, created_at, owner_user_id, status, source_type, source_cat_id)
-                    VALUES (?, 'cat', 'lost', ?, ?, '研究样例', '非真实地点', '2026-10-26 12:00',
+                    VALUES (?, 'cat', 'sighting', ?, ?, '研究样例', '非真实地点', '2026-10-26 12:00',
                             '', ?, ?, 'active', 'hellostreetcat_sample', ?)""",
                     (report_id, json.dumps(images), json.dumps({"coat_color": "", "pattern": "", "breed": "", "size": ""}),
                      now, admin["id"], identity_id),
@@ -114,7 +114,7 @@ def main() -> None:
                 )
                 connection.executemany(
                     """INSERT INTO feature (image_id, image_url, record_type, record_id, feature_path, model_version)
-                    VALUES (?, ?, 'lost', ?, ?, ?)""",
+                    VALUES (?, ?, 'sighting', ?, ?, ?)""",
                     [(image_id, url, report_id, f"{image_id}.npy", model.version)
                      for _row, _path, image_id, url, vector in prepared if vector is not None],
                 )
@@ -124,7 +124,7 @@ def main() -> None:
             raise
         inserted += 1
         print(f"已导入 {inserted}/20：{identity_id}", flush=True)
-    print(f"新增 {inserted} 条 HelloStreetCat 走失样例；跳过已有 {skipped} 条；检测失败图片 {len(failed_images)} 张")
+    print(f"新增 {inserted} 条 HelloStreetCat 发现样例；跳过已有 {skipped} 条；检测失败图片 {len(failed_images)} 张")
     for failure in failed_images:
         print(f"检测失败：{failure}")
 

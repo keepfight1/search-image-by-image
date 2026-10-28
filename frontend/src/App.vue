@@ -6,24 +6,23 @@
       <button class="link" @click="token ? logout() : (authOpen = true)">{{ token ? `${username} · 退出` : '登录 / 注册' }}</button>
     </header>
     <main>
-      <section class="hero"><p class="eyebrow">让每一条目击都有机会被看见</p><h1>一起帮猫找到回家的路</h1><p>照片、时间与地点组合检索，为走失猫和目击线索建立联系。候选需要由双方进一步核实。</p><div class="actions"><button class="primary" @click="choose('lost')">我的猫走失了</button><button class="secondary" @click="choose('sighting')">我发现了一只猫</button></div></section>
+      <section class="hero"><p class="eyebrow">让每一条目击都有机会被看见</p><h1>一起帮猫找到回家的路</h1><p>发现无主猫时发布目击信息；丢猫用户上传自家猫照片，在发现线索中进行检索。候选需要由双方进一步核实。</p><div class="actions"><button class="primary" @click="choose('lost')">我的猫走失了</button><button class="secondary" @click="choose('sighting')">我发现了一只猫</button></div></section>
       <p v-if="notice" class="notice" role="status">{{ notice }}</p>
 
       <section v-if="page === 'publish'" class="content">
-        <div class="heading"><span>{{ editingReport ? '编辑线索' : '发布线索' }}</span><h2>{{ editingReport ? '编辑已发布线索' : form.type === 'lost' ? '发布走失猫信息' : '发布发现猫信息' }}</h2><p>填写真实的事发信息。品种、毛色不确定时可以留空。</p></div>
-        <div v-if="!editingReport" class="switch"><button :class="{ selected: form.type === 'lost' }" @click="form.type = 'lost'">我丢了猫</button><button :class="{ selected: form.type === 'sighting' }" @click="form.type = 'sighting'">我发现猫</button></div>
+        <div class="heading"><span>{{ editingReport ? '编辑线索' : '发布发现线索' }}</span><h2>{{ editingReport ? '编辑已发布的发现线索' : '发布发现的未知主人猫咪' }}</h2><p>此通道只发布发现猫信息。发现地点和时间必须填写，品种、毛色不确定时可以留空。</p></div>
         <form class="panel" @submit.prevent="publish">
           <div class="grid">
-            <label>城市 *<input v-model.trim="form.event_city" required maxlength="100" placeholder="例如：上海" /></label>
-            <label>区县 *<input v-model.trim="form.event_district" required maxlength="100" placeholder="例如：浦东新区" /></label>
-            <label>{{ form.type === 'lost' ? '最后见到时间' : '发现时间' }} *<input v-model="form.event_time" required type="datetime-local" /></label>
+            <label>发现城市 *<input v-model.trim="form.event_city" required maxlength="100" placeholder="例如：上海" /></label>
+            <label>发现区县 *<input v-model.trim="form.event_district" required maxlength="100" placeholder="例如：浦东新区" /></label>
+            <label>发现时间 *<input v-model="form.event_time" required type="datetime-local" /></label>
             <label>联系电话 *<input v-model.trim="form.contact" required type="tel" inputmode="tel" maxlength="30" placeholder="例如：13800138000" /></label>
             <label>毛色<input v-model.trim="form.desc.coat_color" maxlength="50" placeholder="例如：橘白；不确定可留空" /></label>
             <label>花纹<input v-model.trim="form.desc.pattern" maxlength="50" placeholder="例如：虎斑" /></label>
             <label>品种<input v-model.trim="form.desc.breed" maxlength="100" placeholder="不确定可留空" /></label>
             <label>体型<select v-model="form.desc.size"><option value="">不确定</option><option>小</option><option>中</option><option>大</option></select></label>
           </div>
-          <div class="location"><div><strong>事发地点坐标（选填）</strong><p>只有你就在走失或发现地点时，才使用当前定位。</p></div><button type="button" class="secondary small" @click="useLocation">使用当前位置</button><span v-if="form.event_lat !== null">已定位</span></div>
+          <div class="location"><div><strong>发现地点坐标（选填）</strong><p>只有你仍在发现猫的位置附近时，才使用当前定位。</p></div><button type="button" class="secondary small" @click="useLocation">使用当前位置</button><span v-if="form.event_lat !== null">已定位</span></div>
           <label class="upload">猫的照片 * <small>1–5 张 JPG/PNG，建议包含正脸、侧面和全身。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectFiles" /></label>
           <div v-if="existingImages.length" class="previews"><div v-for="(src, i) in existingImages" :key="src"><img :src="src" :alt="`已上传照片 ${i + 1}`" /><button type="button" @click="existingImages.splice(i, 1)">×</button></div></div>
           <div v-if="previews.length" class="previews"><div v-for="(src, i) in previews" :key="src"><img :src="src" :alt="`待上传照片 ${i + 1}`" /><button type="button" @click="removeFile(i)">×</button></div></div>
@@ -33,27 +32,26 @@
       </section>
 
       <section v-else-if="page === 'match'" class="content">
-        <div class="heading"><span>以图搜图</span><h2>匹配线索</h2><p>上传猫的照片，选择身份并设置筛选条件，即可检索库中相反类型的线索；无需先发布。</p></div>
-        <div class="switch"><button :class="{ selected: matchForm.type === 'lost' }" @click="matchForm.type = 'lost'">我丢了猫 · 查找发现线索</button><button :class="{ selected: matchForm.type === 'sighting' }" @click="matchForm.type = 'sighting'">我发现猫 · 查找走失线索</button></div>
+        <div class="heading"><span>走失猫以图搜图</span><h2>为走失猫查找发现线索</h2><p>上传自家走失猫的照片，在平台已发布的发现猫线索中检索。地点和时间均为选填，留空即不限制。</p></div>
         <form class="panel" @submit.prevent="runImageMatch">
           <div class="grid">
-            <label>城市<input v-model.trim="matchForm.city" maxlength="100" placeholder="留空搜索全部城市" /></label>
-            <label>区县<input v-model.trim="matchForm.district" maxlength="100" placeholder="留空搜索全部区县" /></label>
-            <label>开始日期<input v-model="matchForm.since" type="date" /></label>
-            <label>结束日期<input v-model="matchForm.until" type="date" /></label>
+            <label>可能走失城市（选填）<input v-model.trim="matchForm.city" maxlength="100" placeholder="留空搜索全部城市" /></label>
+            <label>可能走失区县（选填）<input v-model.trim="matchForm.district" maxlength="100" placeholder="留空搜索全部区县" /></label>
+            <label>发现线索开始日期（选填）<input v-model="matchForm.since" type="date" /></label>
+            <label>发现线索结束日期（选填）<input v-model="matchForm.until" type="date" /></label>
             <label>毛色<select v-model="matchForm.coat_color"><option value="">全部毛色</option><option v-for="color in coatOptions" :key="color">{{ color }}</option></select></label>
             <label>花纹<select v-model="matchForm.pattern"><option value="">全部花纹</option><option v-for="pattern in patternOptions" :key="pattern">{{ pattern }}</option></select></label>
             <label>品种<input v-model.trim="matchForm.breed" maxlength="100" placeholder="留空不限品种" /></label>
             <label>体型<select v-model="matchForm.size"><option value="">全部体型</option><option>小</option><option>中</option><option>大</option></select></label>
             <label>最多显示<select v-model.number="matchForm.top_k"><option :value="10">10 条</option><option :value="20">20 条</option><option :value="50">50 条</option></select></label>
           </div>
-          <label class="upload match-upload">查询照片 * <small>1–5 张 JPG/PNG，每张不超过 5MB。正脸、侧面和全身照可一起上传。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectMatchFiles" /></label>
+          <label class="upload match-upload">走失猫照片 * <small>1–5 张 JPG/PNG，每张不超过 5MB。正脸、侧面和全身照可一起上传。</small><input type="file" accept="image/jpeg,image/png" multiple @change="selectMatchFiles" /></label>
           <div v-if="matchPreviews.length" class="previews"><div v-for="(src, i) in matchPreviews" :key="src"><img :src="src" :alt="`查询照片 ${i + 1}`" /><button type="button" @click="removeMatchFile(i)">×</button></div></div>
           <p class="tip">筛选条件用于限制候选范围；相似分只是排序依据。</p>
           <button type="button" class="secondary match-reset" @click="resetMatchFilters">清空筛选条件</button>
           <button class="primary submit" :disabled="busy">{{ busy ? '正在匹配…' : '上传照片并开始匹配' }}</button>
         </form>
-        <details v-if="token && matchableItems.length" class="saved-match"><summary>或者用我已发布的线索匹配</summary><div class="panel match-panel"><label>已发布线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.desc.coat_color || '毛色未知' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
+        <details v-if="token && matchableItems.length" class="saved-match"><summary>或者使用以前发布的走失线索匹配</summary><div class="panel match-panel"><label>历史走失线索<select v-model="selectedMatchKey" @change="matchesShown = false"><option value="">请选择一条走失线索</option><option v-for="item in matchableItems" :key="`${item.type}-${item.id}`" :value="`${item.type}:${item.id}`">走失 · {{ item.desc.coat_color || '毛色未知' }}</option></select></label><button class="primary" :disabled="busy || !selectedMatchKey" @click="runSelectedMatch">开始匹配</button></div></details>
         <section v-if="matchesShown" class="results">
           <div class="heading"><span>检索结果</span><h2>可能相关的线索</h2><p>每只猫的已索引照片都会参与比对，结果按线索合并展示。图像相似分用于排序，不代表认领概率。当前范围：{{ searchScope === 'custom' ? '所选筛选条件' : searchScope === 'all_cities' ? '全部城市' : '同城' }}。</p><button v-if="activeReport && searchScope !== 'all_cities'" class="secondary small" @click="expandMatches">扩大到全部城市</button></div>
           <div v-if="!matches.length" class="empty">暂时没有符合条件的候选；可放宽筛选条件后再试。</div>
@@ -98,7 +96,7 @@
           <article v-for="item in myItems" :key="item.id" class="my-item">
             <img :src="item.images[0]" alt="猫照片" />
             <div><strong>{{ item.type === 'lost' ? '走失' : '发现' }} · {{ item.desc.coat_color || '毛色未知' }}</strong><p>{{ item.status }}</p></div>
-            <div class="my-actions"><button class="secondary small" @click="openDetails(item, item.type)">查看详细信息</button><button v-if="!isSample(item) && item.status === 'active'" class="secondary small" @click="startEdit(item)">编辑/补图</button><button v-if="!isSample(item) && item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="!isSample(item) && item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div>
+            <div class="my-actions"><button class="secondary small" @click="openDetails(item, item.type)">查看详细信息</button><button v-if="!isSample(item) && item.type === 'sighting' && item.status === 'active'" class="secondary small" @click="startEdit(item)">编辑/补图</button><button v-if="!isSample(item) && item.type === 'lost' && item.status === 'active'" class="secondary small" @click="viewMatches(item)">查看匹配</button><button v-if="!isSample(item) && item.status === 'active'" class="link" @click="closeReport(item)">标记已解决</button></div>
           </article>
         </div>
       </section>
@@ -156,7 +154,7 @@ const page = ref('publish'), notice = ref(''), busy = ref(false)
 const token = ref(localStorage.getItem('cat_token') || ''), username = ref(localStorage.getItem('cat_user') || '')
 const role = ref(localStorage.getItem('cat_role') || 'user'), visibleTabs = computed(() => tabs.filter(tab => tab.id !== 'admin' || role.value === 'admin'))
 const authOpen = ref(false), registerMode = ref(false), auth = reactive({ username: '', password: '' })
-const form = reactive({ type: 'lost', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } })
+const form = reactive({ type: 'sighting', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } })
 const files = ref([]), previews = ref([]), existingImages = ref([]), editingReport = ref(null), matches = ref([]), matchesShown = ref(false), matchTargetType = ref('sighting'), searchScope = ref('same_city'), activeReport = ref(null)
 const matchForm = reactive({ type: 'lost', city: '', district: '', since: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 })
 const matchFiles = ref([]), matchPreviews = ref([]), matchImageUrls = ref([])
@@ -165,7 +163,7 @@ const browseFilters = reactive({ type: 'all', city: '', district: '', coat_color
 const coatOptions = ['黑', '白', '灰', '橘', '棕', '奶油', '三花', '玳瑁', '黑白', '灰白', '橘白', '其他']
 const patternOptions = ['纯色', '虎斑', '双色', '三花', '玳瑁', '重点色', '斑点', '其他']
 const browseItems = ref([]), browseTotal = ref(0), browseOffset = ref(0), browseLimit = 100, myItems = ref([])
-const selectedMatchKey = ref(''), matchableItems = computed(() => myItems.value.filter(item => item.status === 'active'))
+const selectedMatchKey = ref(''), matchableItems = computed(() => myItems.value.filter(item => item.type === 'lost' && item.status === 'active'))
 const detailItem = ref(null), detailLoading = ref(false)
 const reportTarget = ref(null), reportType = ref(''), reportReason = ref(''), adminReports = ref([]), adminPublications = ref([])
 const adminType = ref('all'), adminStatus = ref('active')
@@ -175,7 +173,7 @@ const filteredAdminPublications = computed(() => adminPublications.value.filter(
 const headers = () => ({ Authorization: `Bearer ${token.value}` })
 const errorText = e => { const detail = e.response?.data?.detail; return typeof detail === 'string' ? detail : e.message || '请求失败' }
 const isSample = item => ['cat50_sample', 'hellostreetcat_sample'].includes(item.source_type)
-function choose(type) { editingReport.value = null; existingImages.value = []; previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []; Object.assign(form, { type, event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } }); matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
+function choose(type) { matchesShown.value = false; if (type === 'lost') { page.value = 'match'; window.scrollTo({ top: 320, behavior: 'smooth' }); return } editingReport.value = null; existingImages.value = []; previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []; Object.assign(form, { type: 'sighting', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } }); page.value = 'publish'; window.scrollTo({ top: 320, behavior: 'smooth' }) }
 function startEdit(item) { editingReport.value = { type: item.type, id: item.id }; existingImages.value = [...item.images]; previews.value.forEach(URL.revokeObjectURL); files.value = []; previews.value = []; form.type = item.type; form.event_city = item.event_city; form.event_district = item.event_district; form.event_time = item.event_time.replace(' ', 'T'); form.event_lat = item.event_lat ?? null; form.event_lng = item.event_lng ?? null; form.contact = item.contact || ''; form.desc = { ...item.desc }; matchesShown.value = false; page.value = 'publish'; window.scrollTo({ top: 280, behavior: 'smooth' }) }
 function logout() { token.value = ''; username.value = ''; role.value = 'user'; matchImageUrls.value = []; myItems.value = []; matchesShown.value = false; localStorage.removeItem('cat_token'); localStorage.removeItem('cat_user'); localStorage.removeItem('cat_role'); page.value = 'publish'; notice.value = '已退出登录' }
 async function authenticate() { busy.value = true; try { if (registerMode.value) await axios.post('/api/v2/auth/register', auth); const { data } = await axios.post('/api/v2/auth/login', auth); token.value = data.access_token; username.value = auth.username; role.value = data.role || 'user'; localStorage.setItem('cat_token', token.value); localStorage.setItem('cat_user', username.value); localStorage.setItem('cat_role', role.value); auth.password = ''; authOpen.value = false; notice.value = '登录成功' } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
@@ -188,6 +186,7 @@ onUnmounted(() => { previews.value.forEach(URL.revokeObjectURL); matchPreviews.v
 function useLocation() { if (!navigator.geolocation) { notice.value = '浏览器不支持定位'; return } navigator.geolocation.getCurrentPosition(p => { form.event_lat = p.coords.latitude; form.event_lng = p.coords.longitude; notice.value = '已填入当前位置，请确认这里就是事发地点' }, () => { notice.value = '定位失败，可只填城市和区县' }, { timeout: 10000 }) }
 async function publish() {
   if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return }
+  if (!form.event_city.trim() || !form.event_district.trim() || !form.event_time) { notice.value = '发现城市、发现区县和发现时间必须填写'; return }
   if (!files.value.length && !existingImages.value.length) { notice.value = '请至少保留一张照片'; return }
   const phone = form.contact.trim()
   const digitCount = (phone.match(/\d/g) || []).length
@@ -200,14 +199,15 @@ async function publish() {
       const { data } = await axios.post('/api/v2/images', body, { headers: headers() })
       images.push(data.image_url)
     }
-    const payload = { species: 'cat', type: form.type, images, desc: { ...form.desc }, event_city: form.event_city, event_district: form.event_district, event_time: form.event_time.replace('T', ' '), event_lat: form.event_lat, event_lng: form.event_lng, contact: form.contact }
     const wasEditing = !!editingReport.value
-    const id = wasEditing ? editingReport.value.id : (await axios.post(`/api/v2/reports/${form.type}`, payload, { headers: headers() })).data.id
-    if (wasEditing) await axios.patch(`/api/v2/reports/${form.type}/${id}`, payload, { headers: headers() })
+    const reportType = wasEditing ? editingReport.value.type : 'sighting'
+    const payload = { species: 'cat', type: reportType, images, desc: { ...form.desc }, event_city: form.event_city, event_district: form.event_district, event_time: form.event_time.replace('T', ' '), event_lat: form.event_lat, event_lng: form.event_lng, contact: form.contact }
+    const id = wasEditing ? editingReport.value.id : (await axios.post('/api/v2/reports/sighting', payload, { headers: headers() })).data.id
+    if (wasEditing) await axios.patch(`/api/v2/reports/${reportType}/${id}`, payload, { headers: headers() })
     editingReport.value = null; existingImages.value = []
     previews.value.forEach(URL.revokeObjectURL); previews.value = []; files.value = []
     await loadMine(); page.value = 'mine'
-    notice.value = wasEditing ? '线索已更新。需要查找候选时，请进入“匹配线索”。' : '线索已发布。需要查找候选时，请进入“匹配线索”。'
+    notice.value = wasEditing ? '发现线索已更新。' : '发现线索已发布，丢猫用户现在可以检索到它。'
   } catch (e) { notice.value = errorText(e) } finally { busy.value = false }
 }
 async function navigate(target) { page.value = target; if (target === 'match') matchesShown.value = false; if (target === 'browse') await loadBrowse(0); if (target === 'mine' || target === 'match') await loadMine(); if (target === 'admin') await loadAdminReports() }
@@ -226,9 +226,9 @@ async function runImageMatch() {
       }
       matchImageUrls.value = urls
     }
-    const { data } = await axios.post('/api/v2/match/search', { ...matchForm, images: matchImageUrls.value }, { headers: headers() })
+    const { data } = await axios.post('/api/v2/match/search', { ...matchForm, type: 'lost', images: matchImageUrls.value }, { headers: headers() })
     matches.value = data.results || []; matchesShown.value = true; activeReport.value = null; searchScope.value = 'custom'
-    matchTargetType.value = matchForm.type === 'lost' ? 'sighting' : 'lost'
+    matchTargetType.value = 'sighting'
     notice.value = `匹配完成，找到 ${data.total} 条符合条件的相似线索`
   } catch (e) { notice.value = errorText(e) } finally { busy.value = false }
 }
@@ -264,7 +264,7 @@ async function openDetails(item, type) {
   } catch (e) { notice.value = errorText(e) } finally { detailLoading.value = false }
 }
 async function loadMine() { if (!token.value) return; try { const { data } = await axios.get('/api/v2/me/reports', { headers: headers() }); myItems.value = data.items } catch (e) { notice.value = errorText(e) } }
-async function viewMatches(item) { selectedMatchKey.value = `${item.type}:${item.id}`; page.value = 'match'; busy.value = true; matchesShown.value = false; try { const { data } = await axios.get(`/api/v2/reports/${item.type}/${item.id}/matches`, { headers: headers() }); activeReport.value = { type: item.type, id: item.id }; matches.value = data.results || []; searchScope.value = data.scope || 'same_city'; matchTargetType.value = item.type === 'lost' ? 'sighting' : 'lost'; matchesShown.value = true; window.scrollTo({ top: 320, behavior: 'smooth' }) } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
+async function viewMatches(item) { if (item.type !== 'lost') { notice.value = '只有丢猫用户可以检索发现线索'; return } selectedMatchKey.value = `${item.type}:${item.id}`; page.value = 'match'; busy.value = true; matchesShown.value = false; try { const { data } = await axios.get(`/api/v2/reports/${item.type}/${item.id}/matches`, { headers: headers() }); activeReport.value = { type: item.type, id: item.id }; matches.value = data.results || []; searchScope.value = data.scope || 'same_city'; matchTargetType.value = 'sighting'; matchesShown.value = true; window.scrollTo({ top: 320, behavior: 'smooth' }) } catch (e) { notice.value = errorText(e) } finally { busy.value = false } }
 async function runSelectedMatch() { const item = matchableItems.value.find(row => `${row.type}:${row.id}` === selectedMatchKey.value); if (item) await viewMatches(item) }
 async function expandMatches() { if (!activeReport.value) return; try { const { type, id } = activeReport.value; const { data } = await axios.get(`/api/v2/reports/${type}/${id}/matches`, { params: { expand: true }, headers: headers() }); matches.value = data.results || []; searchScope.value = data.scope; notice.value = '已扩大到全部城市' } catch (e) { notice.value = errorText(e) } }
 async function closeReport(item) { try { await axios.patch(`/api/v2/reports/${item.type}/${item.id}/status`, { status: 'resolved' }, { headers: headers() }); item.status = 'resolved'; notice.value = '已标记为解决' } catch (e) { notice.value = errorText(e) } }
@@ -275,7 +275,7 @@ async function closeReport(item) { try { await axios.patch(`/api/v2/reports/${it
 .topbar { max-width: 1160px; margin: auto; min-height: 74px; padding: 12px 22px; display: flex; align-items: center; justify-content: space-between; gap: 20px; } .brand { font-size: 21px; white-space: nowrap; } nav { display: flex; gap: 18px; } nav button, .link { border: 0; background: transparent; color: #5b6d61; padding: 7px; } nav button.active, nav button:hover, .link:hover { color: #237846; } main { max-width: 1160px; margin: auto; padding: 0 22px 80px; }
 .hero { border-radius: 26px; padding: 58px 60px; background: linear-gradient(115deg,#e2f1dc,#f6eedc); } .eyebrow, .heading span { color: #318454; font-size: 12px; font-weight: 800; letter-spacing: .06em; } h1 { font-size: clamp(30px,4vw,49px); margin: 12px 0 18px; } h2 { font-size: 27px; margin: 7px 0; } h3 { margin: 8px 0; } .hero > p:not(.eyebrow) { max-width: 630px; color: #63756a; line-height: 1.7; } .actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
 .primary,.secondary { border: 1px solid #2b8050; border-radius: 10px; padding: 12px 19px; font-weight: 700; } .primary { color: white; background: #287d4b; } .primary:hover { background: #1e603b; } .secondary { color: #287d4b; background: white; } .secondary:hover { background: #edf6ef; } .small { padding: 9px 13px; font-size: 13px; } .notice { padding: 12px 16px; border-radius: 10px; margin-top: 20px; background: #e8f5e9; color: #246c3f; }
-.content { padding-top: 50px; } .heading { margin-bottom: 22px; } .heading p { color: #79877d; margin: 7px 0; } .switch { display: inline-flex; padding: 5px; border-radius: 12px; background: #e8ede6; margin-bottom: 20px; } .switch button { border: 0; border-radius: 9px; padding: 10px 22px; background: transparent; color: #53745e; } .switch button.selected { background: white; color: #267a47; box-shadow: 0 2px 9px #2c4b2e14; }
+.content { padding-top: 50px; } .heading { margin-bottom: 22px; } .heading p { color: #79877d; margin: 7px 0; }
 .panel,.dialog { background: white; border: 1px solid #e3e9e0; box-shadow: 0 12px 30px #233c290a; border-radius: 20px; padding: 28px; } .grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; } label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 700; } input,select,textarea { border: 1px solid #dbe4db; border-radius: 9px; background: white; color: #20382b; padding: 11px 12px; width: 100%; outline: none; } input:focus,select:focus,textarea:focus { border-color: #3e9b61; box-shadow: 0 0 0 3px #3e9b6125; } .location { display: flex; align-items: center; gap: 14px; background: #f7f9f4; border-radius: 12px; padding: 14px; margin: 22px 0; } .location > div { flex: 1; } .location p,.tip { font-size: 12px; color: #839086; margin: 5px 0; } .location span { font-size: 12px; color: #267a47; } .upload { border: 2px dashed #cbdccc; border-radius: 12px; padding: 18px; cursor: pointer; } .upload small { color: #839086; font-weight: 400; } .upload input { border: 0; padding-left: 0; } .previews { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; } .previews > div { width: 110px; height: 110px; position: relative; } .previews img { width: 100%; height: 100%; border-radius: 9px; object-fit: cover; } .previews button { position: absolute; top: 3px; right: 3px; border: 0; border-radius: 50%; background: #263b2e; color: white; } .tip { margin: 18px 0; } .submit { width: 100%; } .submit:disabled { opacity: .6; cursor: wait; }
 .results,.inbox { margin-top: 48px; } .result-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .result { display: flex; gap: 15px; border: 1px solid #e3e9e0; border-radius: 15px; background: white; padding: 13px; } .result > img { width: 142px; height: 155px; border-radius: 9px; object-fit: cover; } .result p,.result small { color: #718075; font-size: 13px; margin: 7px 0; } .empty { background: white; border: 1px solid #e3e9e0; border-radius: 15px; padding: 35px; text-align: center; color: #7d8b80; } .filters { display: flex; gap: 10px; margin-bottom: 20px; max-width: 590px; } .filters select { width: 155px; }
 .my-list { display: grid; gap: 12px; } .my-item,.message { border: 1px solid #e3e9e0; background: white; border-radius: 13px; padding: 12px; } .my-item { display: flex; align-items: center; gap: 16px; } .my-item img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; } .my-item p { color: #7a897d; margin: 7px 0; } .my-actions { margin-left: auto; display: grid; gap: 6px; } .message { margin: 10px 0; } .message small { color: #7a897d; } .message > div { display: flex; gap: 8px; margin-top: 12px; }
@@ -295,5 +295,5 @@ async function closeReport(item) { try { await axios.patch(`/api/v2/reports/${it
 .dataset-photos img { width: 100%; height: 135px; object-fit: cover; border-radius: 8px; }
 @media(max-width:900px){ .browse-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width:600px){ .browse-filters,.detail-grid { grid-template-columns: 1fr; } .dataset-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media(max-width:750px){ .topbar { flex-wrap: wrap; padding: 16px; } nav { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 3px; } nav button { font-size: 13px; } main { padding: 0 16px 60px; } .hero { padding: 34px 25px; } .grid,.result-grid { grid-template-columns: 1fr; } .location,.match-panel { flex-wrap: wrap; } .switch { flex-wrap: wrap; } .result > img { width: 110px; height: 130px; } .my-item { flex-wrap: wrap; } .my-actions { margin-left: 0; display: flex; width: 100%; } }
+@media(max-width:750px){ .topbar { flex-wrap: wrap; padding: 16px; } nav { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 3px; } nav button { font-size: 13px; } main { padding: 0 16px 60px; } .hero { padding: 34px 25px; } .grid,.result-grid { grid-template-columns: 1fr; } .location,.match-panel { flex-wrap: wrap; } .result > img { width: 110px; height: 130px; } .my-item { flex-wrap: wrap; } .my-actions { margin-left: 0; display: flex; width: 100%; } }
 </style>

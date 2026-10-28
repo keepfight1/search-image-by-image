@@ -92,7 +92,7 @@ class ImageMatchRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    type: RecordType
+    type: Literal["lost"]
     images: list[str] = Field(min_length=1, max_length=5)
     city: str = Field(default="", max_length=100)
     district: str = Field(default="", max_length=100)

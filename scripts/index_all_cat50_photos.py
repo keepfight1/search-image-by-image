@@ -39,7 +39,7 @@ def main() -> None:
                       l.id AS report_id, l.status AS report_status,
                       f.image_id AS indexed_image_id, f.model_version AS indexed_version
                FROM cat_image i
-               JOIN lost_pet l ON l.source_type = 'cat50_sample' AND l.source_cat_id = i.cat_id
+               JOIN sighting l ON l.source_type = 'cat50_sample' AND l.source_cat_id = i.cat_id
                LEFT JOIN feature f ON f.image_id = i.image_id AND f.record_id = l.id
                ORDER BY i.cat_id, i.image_id"""
         ).fetchall()
@@ -87,7 +87,7 @@ def main() -> None:
                 )
                 connection.execute(
                     """INSERT INTO feature (image_id, image_url, record_type, record_id, feature_path, model_version)
-                       VALUES (?, ?, 'lost', ?, ?, ?)""",
+                       VALUES (?, ?, 'sighting', ?, ?, ?)""",
                     (image_id, f"/api/v2/dataset/images/{image_id}", report_id, feature_name, model.version),
                 )
         except Exception:
@@ -100,7 +100,7 @@ def main() -> None:
 
     with database.connect() as connection:
         indexed = connection.execute(
-            """SELECT COUNT(*) FROM feature f JOIN lost_pet l ON l.id = f.record_id
+            """SELECT COUNT(*) FROM feature f JOIN sighting l ON l.id = f.record_id
                WHERE l.source_type = 'cat50_sample' AND l.status = 'active' AND f.model_version = ?""",
             (model.version,),
         ).fetchone()[0]

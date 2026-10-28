@@ -220,3 +220,6 @@ def test_uploaded_image_match_filters_without_publishing(client, base_payload):
         assert response.status_code == 200 and response.json()["total"] == 0
     assert client.post("/api/v2/match/search", json=query | {"since": "2030-01-01", "until": "2020-01-01"}, headers=searcher).status_code == 422
     assert client.post("/api/v2/match/search", json=query | {"images": []}, headers=searcher).status_code == 422
+    assert client.post(
+        "/api/v2/match/search", json=query | {"type": "sighting"}, headers=searcher
+    ).status_code == 422
