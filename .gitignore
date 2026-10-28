@@ -3,6 +3,7 @@
 __pycache__/
 /.venv/
 /dataset_cat50/
+/dataset_testset/
 /data/
 /backend/data/
 /frontend/node_modules/

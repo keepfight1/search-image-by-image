@@ -289,7 +289,7 @@ def build_router(service: BackendService, database: Database) -> APIRouter:
         if not record["contact"]:
             raise HTTPException(status_code=404, detail="发布者尚未填写电话")
         result = {"phone": record["contact"]}
-        if record["source_type"] in {"cat50_sample", "hellostreetcat_sample"}:
+        if record["source_type"] in {"cat50_sample", "hellostreetcat_sample", "dataset_gallery_sample"}:
             result["is_demo"] = True
         return result
 
