@@ -37,8 +37,8 @@
           <div class="grid">
             <label>可能走失城市（选填）<input v-model.trim="matchForm.city" maxlength="100" placeholder="留空搜索全部城市" /></label>
             <label>可能走失区县（选填）<input v-model.trim="matchForm.district" maxlength="100" placeholder="留空搜索全部区县" /></label>
-            <label>发现线索开始日期（选填）<input v-model="matchForm.since" type="date" /></label>
-            <label>发现线索结束日期（选填）<input v-model="matchForm.until" type="date" /></label>
+            <label>走失日期（选填）<input v-model="matchForm.lost_date" type="date" /><small>自动排除早于走失日期的目击线索</small></label>
+            <label>最晚发现日期（选填）<input v-model="matchForm.until" type="date" /></label>
             <label>毛色<select v-model="matchForm.coat_color"><option value="">全部毛色</option><option v-for="color in coatOptions" :key="color">{{ color }}</option></select></label>
             <label>花纹<select v-model="matchForm.pattern"><option value="">全部花纹</option><option v-for="pattern in patternOptions" :key="pattern">{{ pattern }}</option></select></label>
             <label>品种<input v-model.trim="matchForm.breed" maxlength="100" placeholder="留空不限品种" /></label>
@@ -156,7 +156,7 @@ const role = ref(localStorage.getItem('cat_role') || 'user'), visibleTabs = comp
 const authOpen = ref(false), registerMode = ref(false), auth = reactive({ username: '', password: '' })
 const form = reactive({ type: 'sighting', event_city: '', event_district: '', event_time: '', event_lat: null, event_lng: null, contact: '', desc: { coat_color: '', pattern: '', size: '', breed: '' } })
 const files = ref([]), previews = ref([]), existingImages = ref([]), editingReport = ref(null), matches = ref([]), matchesShown = ref(false), matchTargetType = ref('sighting'), searchScope = ref('same_city'), activeReport = ref(null)
-const matchForm = reactive({ type: 'lost', city: '', district: '', since: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 })
+const matchForm = reactive({ type: 'lost', city: '', district: '', lost_date: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 })
 const matchFiles = ref([]), matchPreviews = ref([]), matchImageUrls = ref([])
 watch(matchForm, () => { matchesShown.value = false })
 const browseFilters = reactive({ type: 'all', city: '', district: '', coat_color: '', pattern: '', breed: '', since: '', until: '' })
@@ -181,7 +181,7 @@ function selectFiles(e) { const next = Array.from(e.target.files || []); if (nex
 function removeFile(i) { URL.revokeObjectURL(previews.value[i]); files.value.splice(i, 1); previews.value.splice(i, 1) }
 function selectMatchFiles(e) { const next = Array.from(e.target.files || []); e.target.value = ''; if (!next.length) return; if (next.length > 5 || next.some(f => !['image/jpeg', 'image/png'].includes(f.type) || f.size > 5 * 1024 * 1024)) { notice.value = '查询照片最多 5 张 JPG/PNG，每张不超过 5MB'; return } matchPreviews.value.forEach(URL.revokeObjectURL); matchFiles.value = next; matchPreviews.value = next.map(URL.createObjectURL); matchImageUrls.value = []; matchesShown.value = false }
 function removeMatchFile(i) { URL.revokeObjectURL(matchPreviews.value[i]); matchFiles.value.splice(i, 1); matchPreviews.value.splice(i, 1); matchImageUrls.value = []; matchesShown.value = false }
-function resetMatchFilters() { Object.assign(matchForm, { city: '', district: '', since: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 }); matchesShown.value = false }
+function resetMatchFilters() { Object.assign(matchForm, { city: '', district: '', lost_date: '', until: '', coat_color: '', pattern: '', breed: '', size: '', top_k: 10 }); matchesShown.value = false }
 onUnmounted(() => { previews.value.forEach(URL.revokeObjectURL); matchPreviews.value.forEach(URL.revokeObjectURL) })
 function useLocation() { if (!navigator.geolocation) { notice.value = '浏览器不支持定位'; return } navigator.geolocation.getCurrentPosition(p => { form.event_lat = p.coords.latitude; form.event_lng = p.coords.longitude; notice.value = '已填入当前位置，请确认这里就是事发地点' }, () => { notice.value = '定位失败，可只填城市和区县' }, { timeout: 10000 }) }
 async function publish() {
@@ -214,7 +214,7 @@ async function navigate(target) { page.value = target; if (target === 'match') m
 async function runImageMatch() {
   if (!token.value) { authOpen.value = true; notice.value = '请先登录'; return }
   if (!matchFiles.value.length) { notice.value = '请先选择至少一张查询照片'; return }
-  if (matchForm.since && matchForm.until && matchForm.since > matchForm.until) { notice.value = '开始日期不能晚于结束日期'; return }
+  if (matchForm.lost_date && matchForm.until && matchForm.lost_date > matchForm.until) { notice.value = '走失日期不能晚于最晚发现日期'; return }
   busy.value = true; matchesShown.value = false
   try {
     if (matchImageUrls.value.length !== matchFiles.value.length) {

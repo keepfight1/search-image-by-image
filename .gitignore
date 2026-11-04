@@ -4,6 +4,7 @@ __pycache__/
 /.venv/
 /dataset_cat50/
 /dataset_testset/
+/teacher_test_cases/rendered/
 /data/
 /backend/data/
 /frontend/node_modules/

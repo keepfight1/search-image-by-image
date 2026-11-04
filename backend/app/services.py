@@ -206,6 +206,8 @@ class BackendService:
                 continue
             if payload.since and candidate["event_time"][:10] < payload.since:
                 continue
+            if payload.lost_date and candidate["event_time"][:10] < payload.lost_date:
+                continue
             if payload.until and candidate["event_time"][:10] > payload.until:
                 continue
             if any(not contains(description.get(field, ""), getattr(payload, field))
@@ -231,7 +233,7 @@ class BackendService:
                     "score": round(score, 4), "rank_score": round(score, 4),
                     "reasons": ["图片相似", "符合筛选条件"] if any((payload.city, payload.district,
                         payload.coat_color, payload.pattern, payload.breed, payload.size,
-                        payload.since, payload.until)) else ["图片相似"],
+                        payload.lost_date, payload.since, payload.until)) else ["图片相似"],
                     "has_phone": bool(candidate["contact"]),
                     "source_type": candidate["source_type"],
                     "source_cat_id": candidate["source_cat_id"],

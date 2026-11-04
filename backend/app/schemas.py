@@ -100,6 +100,7 @@ class ImageMatchRequest(BaseModel):
     pattern: str = Field(default="", max_length=50)
     breed: str = Field(default="", max_length=100)
     size: str = Field(default="", max_length=20)
+    lost_date: str = ""
     since: str = ""
     until: str = ""
     top_k: int = Field(default=10, ge=1, le=50)
@@ -113,7 +114,7 @@ class ImageMatchRequest(BaseModel):
             raise ValueError("images 必须使用已上传的图片地址")
         return values
 
-    @field_validator("since", "until")
+    @field_validator("lost_date", "since", "until")
     @classmethod
     def validate_date(cls, value: str) -> str:
         if value:
@@ -127,6 +128,8 @@ class ImageMatchRequest(BaseModel):
     def validate_range(self) -> "ImageMatchRequest":
         if self.since and self.until and self.since > self.until:
             raise ValueError("开始日期不能晚于结束日期")
+        if self.lost_date and self.until and self.lost_date > self.until:
+            raise ValueError("走失日期不能晚于最晚发现日期")
         return self
 
 

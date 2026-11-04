@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>寻猫平台测试用例展示</title><style>
+body{margin:0;background:#f4f7f3;color:#183226;font-family:"Microsoft YaHei",sans-serif}main{max-width:1120px;margin:auto;padding:40px 24px 72px}
+h1{font-size:36px;margin:8px 0}h2{margin:0 0 8px}p{line-height:1.65}.eyebrow{color:#287d4b;font-weight:800}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:28px 0}
+.summary div,.case,.batch{background:#fff;border:1px solid #dfe7df;border-radius:16px;padding:20px;box-shadow:0 8px 24px #1832260a}.summary strong{display:block;font-size:25px;color:#246c3f}.flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:24px 0}.flow span{background:#e7f2e8;border-radius:9px;padding:10px 14px;font-weight:700}.flow b{color:#6f7d72}
+.case{margin-top:22px}.case-title{display:flex;gap:14px;align-items:flex-start}.case-title>span{background:#287d4b;color:white;border-radius:50%;width:34px;height:34px;display:grid;place-items:center;font-weight:800}.case-title p{margin:0;color:#5f7065}.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}figure{margin:0}figure img{width:100%;height:230px;object-fit:cover;border-radius:12px;background:#eef1ed}figcaption{font-size:13px;color:#617068;margin-top:6px}.result-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.result-pair div{background:#f6f8f5;border-radius:10px;padding:12px}.result-pair p{margin:4px 0}.filter{font-weight:700;color:#246c3f}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}th{background:#285b3e;color:white}th,td{border:1px solid #d9d9d9;padding:10px;text-align:center}tbody tr:nth-child(even){background:#f3f7f3}.batch{margin-top:24px}.note{color:#5f7065}@media(max-width:760px){.summary,.photos{grid-template-columns:1fr 1fr}.result-pair{grid-template-columns:1fr}table{font-size:12px}}@media(max-width:480px){.summary,.photos{grid-template-columns:1fr}}
+</style></head><body><main><p class="eyebrow">课堂演示材料</p><h1>寻猫平台测试用例展示</h1><p>固定测试图片先经过猫检测和特征提取，再与全部发现线索比较。地点和走失日期在图像排序前缩小候选范围。</p>
+<div class="summary"><div><strong>152</strong>活跃发现线索</div><div><strong>1757</strong>图片向量</div><div><strong>江岸区 27 / 江汉区 27 / 硚口区 26</strong>武汉三区分布</div><div><strong>2025年 40 / 2026年 40</strong>2025和2026分布</div></div>
+<div class="flow"><span>上传走失猫照片</span><b>→</b><span>猫检测</span><b>→</b><span>地点和时间筛选</span><b>→</b><span>图像相似度排序</span><b>→</b><span>人工核对</span></div>
+
+        <section class="case">
+          <div class="case-title"><span>1</span><div><h2>同种颜色仍能区分个体</h2><p>查询猫与干扰猫均呈橘白色，正确身份仍排第 1。</p></div></div>
+          <div class="photos">
+            <figure><img src="images/01_same_color_query.jpg" alt="查询猫"><figcaption>主人提供的查询照片</figcaption></figure>
+            <figure><img src="images/01_same_color_target.jpg" alt="正确线索"><figcaption>正确发现线索</figcaption></figure>
+            <figure><img src="images/01_same_color_distractor.jpg" alt="相似猫"><figcaption>需要排除的相似猫</figcaption></figure>
+          </div>
+          <div class="result-pair"><div><strong>筛选前</strong><p>正确线索排名 1，候选 152 条。</p></div>
+          <div><strong>筛选后</strong><p>正确线索排名 1，候选 152 条。</p></div></div>
+          <p class="filter">演示条件：不使用颜色排除；图库中有 21 条标为橘色的线索，排序依靠个体图像特征。</p>
+          <table><thead><tr><th>对象</th><th>排名</th><th>相似分</th><th>区县</th><th>目击时间</th></tr></thead><tbody><tr><td>正确身份</td><td>1</td><td>0.9223</td><td>硚口区</td><td>2025-09-01 18:56</td></tr><tr><td>同色相似猫</td><td>5</td><td>0.3727</td><td>硚口区</td><td>2025-03-15 15:26</td></tr></tbody></table>
+        </section>
+        <section class="case">
+          <div class="case-title"><span>2</span><div><h2>地点筛选排除异区相似猫</h2><p>仅看图片时异区相似猫排第 1；限定武汉市硚口区后，正确线索升至第 1。</p></div></div>
+          <div class="photos">
+            <figure><img src="images/02_location_query.jpg" alt="查询猫"><figcaption>主人提供的查询照片</figcaption></figure>
+            <figure><img src="images/02_location_target.jpg" alt="正确线索"><figcaption>正确发现线索</figcaption></figure>
+            <figure><img src="images/02_location_distractor.jpg" alt="相似猫"><figcaption>需要排除的相似猫</figcaption></figure>
+          </div>
+          <div class="result-pair"><div><strong>筛选前</strong><p>正确线索排名 2，候选 152 条。</p></div>
+          <div><strong>筛选后</strong><p>正确线索排名 1，候选 26 条。</p></div></div>
+          <p class="filter">演示条件：城市=武汉市，区县=硚口区。错误候选位于江汉区。</p>
+          <table><thead><tr><th>对象</th><th>排名</th><th>相似分</th><th>区县</th><th>目击时间</th></tr></thead><tbody><tr><td>筛选前第1名</td><td>1</td><td>0.6981</td><td>江汉区</td><td>2025-05-01 17:52</td></tr><tr><td>地点筛选后的正确身份</td><td>1</td><td>0.5786</td><td>硚口区</td><td>2025-09-01 08:32</td></tr></tbody></table>
+        </section>
+        <section class="case">
+          <div class="case-title"><span>3</span><div><h2>走失日期排除更早目击</h2><p>猫在 2026 年走失时，2025 年目击不可能是本次走失后的线索；过滤后正确身份升至第 1。</p></div></div>
+          <div class="photos">
+            <figure><img src="images/03_time_query.jpg" alt="查询猫"><figcaption>主人提供的查询照片</figcaption></figure>
+            <figure><img src="images/03_time_target.jpg" alt="正确线索"><figcaption>正确发现线索</figcaption></figure>
+            <figure><img src="images/03_time_distractor.jpg" alt="相似猫"><figcaption>需要排除的相似猫</figcaption></figure>
+          </div>
+          <div class="result-pair"><div><strong>筛选前</strong><p>正确线索排名 2，候选 152 条。</p></div>
+          <div><strong>筛选后</strong><p>正确线索排名 1，候选 112 条。</p></div></div>
+          <p class="filter">演示条件：走失日期=2026-01-01，系统排除所有 2025 年目击线索。</p>
+          <table><thead><tr><th>对象</th><th>排名</th><th>相似分</th><th>区县</th><th>目击时间</th></tr></thead><tbody><tr><td>筛选前第1名</td><td>1</td><td>0.7758</td><td>硚口区</td><td>2025-03-15 12:38</td></tr><tr><td>时间筛选后的正确身份</td><td>1</td><td>0.7374</td><td>江岸区</td><td>2026-10-08 09:45</td></tr></tbody></table>
+        </section>
+<section class="batch"><h2>80 张同猫查询的批量结果</h2><table><thead><tr><th>方案</th><th>Top 1</th><th>Top 5</th><th>Recall 1</th><th>候选数中位数</th></tr></thead><tbody><tr><td>仅图片</td><td>70/80（87.5%）</td><td>75/80（93.8%）</td><td>69/80（86.2%）</td><td>152</td></tr><tr><td>图片和地点</td><td>75/80（93.8%）</td><td>78/80（97.5%）</td><td>73/80（91.2%）</td><td>27</td></tr><tr><td>图片和走失日期</td><td>71/80（88.8%）</td><td>76/80（95.0%）</td><td>70/80（87.5%）</td><td>112</td></tr><tr><td>图片 地点和走失日期</td><td>75/80（93.8%）</td><td>78/80（97.5%）</td><td>73/80（91.2%）</td><td>14</td></tr></tbody></table><p class="note">Recall 1 要求正确线索排第一且相似分不低于 0.45。筛选条件来自正确线索的武汉区县和对应年份，用于验证筛选逻辑，不表示模型可以自动知道地点或走失日期。</p></section>
+</main></body></html>

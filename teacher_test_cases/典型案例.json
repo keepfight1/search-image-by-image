@@ -1,0 +1,851 @@
+[
+  {
+    "key": "same_color",
+    "number": "1",
+    "title": "同种颜色仍能区分个体",
+    "conclusion": "查询猫与干扰猫均呈橘白色，正确身份仍排第 1。",
+    "filter_text": "不使用颜色排除；图库中有 21 条标为橘色的线索，排序依靠个体图像特征。",
+    "query_image": "images/01_same_color_query.jpg",
+    "target_image": "images/01_same_color_target.jpg",
+    "distractor_image": "images/01_same_color_distractor.jpg",
+    "before": {
+      "target_rank": 1,
+      "target_score": 0.9223,
+      "top_id": "dataset-sighting-p_0333",
+      "top_score": 0.9223,
+      "candidate_count": 152,
+      "accepted_candidate_count": 1,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0333",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0333",
+          "images": [
+            "/uploads/dataset_cat_001247.jpg",
+            "/uploads/dataset_cat_001248.jpg",
+            "/uploads/dataset_cat_001249.jpg",
+            "/uploads/dataset_cat_001250.jpg"
+          ],
+          "desc": {
+            "coat_color": "橘",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-09-01 18:56",
+          "score": 0.9223,
+          "rank": 1
+        },
+        {
+          "id": "cat50-lost-0018",
+          "source_type": "cat50_sample",
+          "source_cat_id": "0018",
+          "images": [
+            "/uploads/sample_cat50_0018_0000.jpg",
+            "/uploads/sample_cat50_0018_0018.jpg"
+          ],
+          "desc": {
+            "coat_color": "奶油",
+            "pattern": "纯色",
+            "breed": "",
+            "size": ""
+          },
+          "city": "上海市",
+          "district": "浦东新区",
+          "event_time": "2026-10-26 12:00",
+          "score": 0.4473,
+          "rank": 2
+        },
+        {
+          "id": "cat50-lost-0029",
+          "source_type": "cat50_sample",
+          "source_cat_id": "0029",
+          "images": [
+            "/uploads/sample_cat50_0029_0000.jpg",
+            "/uploads/sample_cat50_0029_0025.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "",
+            "size": ""
+          },
+          "city": "上海市",
+          "district": "浦东新区",
+          "event_time": "2026-10-26 12:00",
+          "score": 0.4382,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0308",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0308",
+          "images": [
+            "/uploads/dataset_cat_001155.jpg",
+            "/uploads/dataset_cat_001156.jpg",
+            "/uploads/dataset_cat_001157.jpg",
+            "/uploads/dataset_cat_001158.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2026-08-22 15:31",
+          "score": 0.3837,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0363",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0363",
+          "images": [
+            "/uploads/dataset_cat_001358.jpg",
+            "/uploads/dataset_cat_001359.jpg"
+          ],
+          "desc": {
+            "coat_color": "橘",
+            "pattern": "斑点",
+            "breed": "英短",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 15:26",
+          "score": 0.3727,
+          "rank": 5
+        }
+      ]
+    },
+    "after": {
+      "target_rank": 1,
+      "target_score": 0.9223,
+      "top_id": "dataset-sighting-p_0333",
+      "top_score": 0.9223,
+      "candidate_count": 152,
+      "accepted_candidate_count": 1,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0333",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0333",
+          "images": [
+            "/uploads/dataset_cat_001247.jpg",
+            "/uploads/dataset_cat_001248.jpg",
+            "/uploads/dataset_cat_001249.jpg",
+            "/uploads/dataset_cat_001250.jpg"
+          ],
+          "desc": {
+            "coat_color": "橘",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-09-01 18:56",
+          "score": 0.9223,
+          "rank": 1
+        },
+        {
+          "id": "cat50-lost-0018",
+          "source_type": "cat50_sample",
+          "source_cat_id": "0018",
+          "images": [
+            "/uploads/sample_cat50_0018_0000.jpg",
+            "/uploads/sample_cat50_0018_0018.jpg"
+          ],
+          "desc": {
+            "coat_color": "奶油",
+            "pattern": "纯色",
+            "breed": "",
+            "size": ""
+          },
+          "city": "上海市",
+          "district": "浦东新区",
+          "event_time": "2026-10-26 12:00",
+          "score": 0.4473,
+          "rank": 2
+        },
+        {
+          "id": "cat50-lost-0029",
+          "source_type": "cat50_sample",
+          "source_cat_id": "0029",
+          "images": [
+            "/uploads/sample_cat50_0029_0000.jpg",
+            "/uploads/sample_cat50_0029_0025.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "",
+            "size": ""
+          },
+          "city": "上海市",
+          "district": "浦东新区",
+          "event_time": "2026-10-26 12:00",
+          "score": 0.4382,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0308",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0308",
+          "images": [
+            "/uploads/dataset_cat_001155.jpg",
+            "/uploads/dataset_cat_001156.jpg",
+            "/uploads/dataset_cat_001157.jpg",
+            "/uploads/dataset_cat_001158.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2026-08-22 15:31",
+          "score": 0.3837,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0363",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0363",
+          "images": [
+            "/uploads/dataset_cat_001358.jpg",
+            "/uploads/dataset_cat_001359.jpg"
+          ],
+          "desc": {
+            "coat_color": "橘",
+            "pattern": "斑点",
+            "breed": "英短",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 15:26",
+          "score": 0.3727,
+          "rank": 5
+        }
+      ]
+    },
+    "comparison_rows": [
+      {
+        "label": "正确身份",
+        "id": "dataset-sighting-p_0333",
+        "source_cat_id": "p_0333",
+        "score": 0.9223,
+        "rank": 1,
+        "city": "武汉市",
+        "district": "硚口区",
+        "event_time": "2025-09-01 18:56",
+        "desc": {
+          "coat_color": "橘",
+          "pattern": "斑点",
+          "breed": "家猫(短毛)",
+          "size": "小"
+        },
+        "images": [
+          "/uploads/dataset_cat_001247.jpg",
+          "/uploads/dataset_cat_001248.jpg",
+          "/uploads/dataset_cat_001249.jpg",
+          "/uploads/dataset_cat_001250.jpg"
+        ]
+      },
+      {
+        "label": "同色相似猫",
+        "id": "dataset-sighting-p_0363",
+        "source_cat_id": "p_0363",
+        "score": 0.3727,
+        "rank": 5,
+        "city": "武汉市",
+        "district": "硚口区",
+        "event_time": "2025-03-15 15:26",
+        "desc": {
+          "coat_color": "橘",
+          "pattern": "斑点",
+          "breed": "英短",
+          "size": "中"
+        },
+        "images": [
+          "/uploads/dataset_cat_001358.jpg",
+          "/uploads/dataset_cat_001359.jpg"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "location",
+    "number": "2",
+    "title": "地点筛选排除异区相似猫",
+    "conclusion": "仅看图片时异区相似猫排第 1；限定武汉市硚口区后，正确线索升至第 1。",
+    "filter_text": "城市=武汉市，区县=硚口区。错误候选位于江汉区。",
+    "query_image": "images/02_location_query.jpg",
+    "target_image": "images/02_location_target.jpg",
+    "distractor_image": "images/02_location_distractor.jpg",
+    "before": {
+      "target_rank": 2,
+      "target_score": 0.5786,
+      "top_id": "dataset-sighting-p_0365",
+      "top_score": 0.6981,
+      "candidate_count": 152,
+      "accepted_candidate_count": 4,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0365",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0365",
+          "images": [
+            "/uploads/dataset_cat_001366.jpg",
+            "/uploads/dataset_cat_001367.jpg",
+            "/uploads/dataset_cat_001368.jpg",
+            "/uploads/dataset_cat_001369.jpg"
+          ],
+          "desc": {
+            "coat_color": "灰",
+            "pattern": "纯色",
+            "breed": "家猫(中长毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2025-05-01 17:52",
+          "score": 0.6981,
+          "rank": 1
+        },
+        {
+          "id": "dataset-sighting-p_0345",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0345",
+          "images": [
+            "/uploads/dataset_cat_001290.jpg",
+            "/uploads/dataset_cat_001291.jpg"
+          ],
+          "desc": {
+            "coat_color": "灰",
+            "pattern": "虎斑",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-09-01 08:32",
+          "score": 0.5786,
+          "rank": 2
+        },
+        {
+          "id": "dataset-sighting-p_0303",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0303",
+          "images": [
+            "/uploads/dataset_cat_001131.jpg",
+            "/uploads/dataset_cat_001132.jpg",
+            "/uploads/dataset_cat_001133.jpg"
+          ],
+          "desc": {
+            "coat_color": "棕",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 10:26",
+          "score": 0.4812,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0336",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0336",
+          "images": [
+            "/uploads/dataset_cat_001257.jpg"
+          ],
+          "desc": {
+            "coat_color": "棕",
+            "pattern": "纯色",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-12-22 10:35",
+          "score": 0.4754,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0351",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0351",
+          "images": [
+            "/uploads/dataset_cat_001311.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 14:50",
+          "score": 0.4409,
+          "rank": 5
+        }
+      ]
+    },
+    "after": {
+      "target_rank": 1,
+      "target_score": 0.5786,
+      "top_id": "dataset-sighting-p_0345",
+      "top_score": 0.5786,
+      "candidate_count": 26,
+      "accepted_candidate_count": 3,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0345",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0345",
+          "images": [
+            "/uploads/dataset_cat_001290.jpg",
+            "/uploads/dataset_cat_001291.jpg"
+          ],
+          "desc": {
+            "coat_color": "灰",
+            "pattern": "虎斑",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-09-01 08:32",
+          "score": 0.5786,
+          "rank": 1
+        },
+        {
+          "id": "dataset-sighting-p_0303",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0303",
+          "images": [
+            "/uploads/dataset_cat_001131.jpg",
+            "/uploads/dataset_cat_001132.jpg",
+            "/uploads/dataset_cat_001133.jpg"
+          ],
+          "desc": {
+            "coat_color": "棕",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 10:26",
+          "score": 0.4812,
+          "rank": 2
+        },
+        {
+          "id": "dataset-sighting-p_0336",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0336",
+          "images": [
+            "/uploads/dataset_cat_001257.jpg"
+          ],
+          "desc": {
+            "coat_color": "棕",
+            "pattern": "纯色",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-12-22 10:35",
+          "score": 0.4754,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0351",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0351",
+          "images": [
+            "/uploads/dataset_cat_001311.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 14:50",
+          "score": 0.4409,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0342",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0342",
+          "images": [
+            "/uploads/dataset_cat_001278.jpg",
+            "/uploads/dataset_cat_001279.jpg",
+            "/uploads/dataset_cat_001280.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "Oriental Short Hair",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-06-08 16:53",
+          "score": 0.414,
+          "rank": 5
+        }
+      ]
+    },
+    "comparison_rows": [
+      {
+        "label": "筛选前第1名",
+        "id": "dataset-sighting-p_0365",
+        "source_cat_id": "p_0365",
+        "score": 0.6981,
+        "rank": 1,
+        "city": "武汉市",
+        "district": "江汉区",
+        "event_time": "2025-05-01 17:52",
+        "desc": {
+          "coat_color": "灰",
+          "pattern": "纯色",
+          "breed": "家猫(中长毛)",
+          "size": "中"
+        },
+        "images": [
+          "/uploads/dataset_cat_001366.jpg",
+          "/uploads/dataset_cat_001367.jpg",
+          "/uploads/dataset_cat_001368.jpg",
+          "/uploads/dataset_cat_001369.jpg"
+        ]
+      },
+      {
+        "label": "地点筛选后的正确身份",
+        "id": "dataset-sighting-p_0345",
+        "source_cat_id": "p_0345",
+        "score": 0.5786,
+        "rank": 1,
+        "city": "武汉市",
+        "district": "硚口区",
+        "event_time": "2025-09-01 08:32",
+        "desc": {
+          "coat_color": "灰",
+          "pattern": "虎斑",
+          "breed": "家猫(短毛)",
+          "size": "中"
+        },
+        "images": [
+          "/uploads/dataset_cat_001290.jpg",
+          "/uploads/dataset_cat_001291.jpg"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "time",
+    "number": "3",
+    "title": "走失日期排除更早目击",
+    "conclusion": "猫在 2026 年走失时，2025 年目击不可能是本次走失后的线索；过滤后正确身份升至第 1。",
+    "filter_text": "走失日期=2026-01-01，系统排除所有 2025 年目击线索。",
+    "query_image": "images/03_time_query.jpg",
+    "target_image": "images/03_time_target.jpg",
+    "distractor_image": "images/03_time_distractor.jpg",
+    "before": {
+      "target_rank": 2,
+      "target_score": 0.7374,
+      "top_id": "dataset-sighting-p_0327",
+      "top_score": 0.7758,
+      "candidate_count": 152,
+      "accepted_candidate_count": 9,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0327",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0327",
+          "images": [
+            "/uploads/dataset_cat_001223.jpg",
+            "/uploads/dataset_cat_001224.jpg",
+            "/uploads/dataset_cat_001225.jpg",
+            "/uploads/dataset_cat_001226.jpg"
+          ],
+          "desc": {
+            "coat_color": "橘",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2025-03-15 12:38",
+          "score": 0.7758,
+          "rank": 1
+        },
+        {
+          "id": "dataset-sighting-p_0346",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0346",
+          "images": [
+            "/uploads/dataset_cat_001293.jpg",
+            "/uploads/dataset_cat_001294.jpg",
+            "/uploads/dataset_cat_001295.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "波斯猫",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "江岸区",
+          "event_time": "2026-10-08 09:45",
+          "score": 0.7374,
+          "rank": 2
+        },
+        {
+          "id": "dataset-sighting-p_0377",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0377",
+          "images": [
+            "/uploads/dataset_cat_001415.jpg",
+            "/uploads/dataset_cat_001416.jpg",
+            "/uploads/dataset_cat_001417.jpg",
+            "/uploads/dataset_cat_001418.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "家猫(中长毛)",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2025-05-01 18:28",
+          "score": 0.7353,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0308",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0308",
+          "images": [
+            "/uploads/dataset_cat_001155.jpg",
+            "/uploads/dataset_cat_001156.jpg",
+            "/uploads/dataset_cat_001157.jpg",
+            "/uploads/dataset_cat_001158.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2026-08-22 15:31",
+          "score": 0.6902,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0324",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0324",
+          "images": [
+            "/uploads/dataset_cat_001212.jpg",
+            "/uploads/dataset_cat_001213.jpg",
+            "/uploads/dataset_cat_001214.jpg",
+            "/uploads/dataset_cat_001215.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "家猫(中长毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-12-22 09:59",
+          "score": 0.666,
+          "rank": 5
+        }
+      ]
+    },
+    "after": {
+      "target_rank": 1,
+      "target_score": 0.7374,
+      "top_id": "dataset-sighting-p_0346",
+      "top_score": 0.7374,
+      "candidate_count": 112,
+      "accepted_candidate_count": 4,
+      "top5": [
+        {
+          "id": "dataset-sighting-p_0346",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0346",
+          "images": [
+            "/uploads/dataset_cat_001293.jpg",
+            "/uploads/dataset_cat_001294.jpg",
+            "/uploads/dataset_cat_001295.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "波斯猫",
+            "size": "中"
+          },
+          "city": "武汉市",
+          "district": "江岸区",
+          "event_time": "2026-10-08 09:45",
+          "score": 0.7374,
+          "rank": 1
+        },
+        {
+          "id": "dataset-sighting-p_0308",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0308",
+          "images": [
+            "/uploads/dataset_cat_001155.jpg",
+            "/uploads/dataset_cat_001156.jpg",
+            "/uploads/dataset_cat_001157.jpg",
+            "/uploads/dataset_cat_001158.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2026-08-22 15:31",
+          "score": 0.6902,
+          "rank": 2
+        },
+        {
+          "id": "dataset-sighting-p_0324",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0324",
+          "images": [
+            "/uploads/dataset_cat_001212.jpg",
+            "/uploads/dataset_cat_001213.jpg",
+            "/uploads/dataset_cat_001214.jpg",
+            "/uploads/dataset_cat_001215.jpg"
+          ],
+          "desc": {
+            "coat_color": "白",
+            "pattern": "纯色",
+            "breed": "家猫(中长毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-12-22 09:59",
+          "score": 0.666,
+          "rank": 3
+        },
+        {
+          "id": "dataset-sighting-p_0380",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0380",
+          "images": [
+            "/uploads/dataset_cat_001430.jpg",
+            "/uploads/dataset_cat_001431.jpg",
+            "/uploads/dataset_cat_001432.jpg"
+          ],
+          "desc": {
+            "coat_color": "棕",
+            "pattern": "斑点",
+            "breed": "家猫(短毛)",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "江汉区",
+          "event_time": "2026-08-22 10:07",
+          "score": 0.5044,
+          "rank": 4
+        },
+        {
+          "id": "dataset-sighting-p_0378",
+          "source_type": "dataset_gallery_sample",
+          "source_cat_id": "p_0378",
+          "images": [
+            "/uploads/dataset_cat_001420.jpg",
+            "/uploads/dataset_cat_001421.jpg",
+            "/uploads/dataset_cat_001422.jpg",
+            "/uploads/dataset_cat_001423.jpg"
+          ],
+          "desc": {
+            "coat_color": "黑",
+            "pattern": "虎斑",
+            "breed": "",
+            "size": "小"
+          },
+          "city": "武汉市",
+          "district": "硚口区",
+          "event_time": "2026-06-08 08:41",
+          "score": 0.4455,
+          "rank": 5
+        }
+      ]
+    },
+    "comparison_rows": [
+      {
+        "label": "筛选前第1名",
+        "id": "dataset-sighting-p_0327",
+        "source_cat_id": "p_0327",
+        "score": 0.7758,
+        "rank": 1,
+        "city": "武汉市",
+        "district": "硚口区",
+        "event_time": "2025-03-15 12:38",
+        "desc": {
+          "coat_color": "橘",
+          "pattern": "斑点",
+          "breed": "家猫(短毛)",
+          "size": "中"
+        },
+        "images": [
+          "/uploads/dataset_cat_001223.jpg",
+          "/uploads/dataset_cat_001224.jpg",
+          "/uploads/dataset_cat_001225.jpg",
+          "/uploads/dataset_cat_001226.jpg"
+        ]
+      },
+      {
+        "label": "时间筛选后的正确身份",
+        "id": "dataset-sighting-p_0346",
+        "source_cat_id": "p_0346",
+        "score": 0.7374,
+        "rank": 1,
+        "city": "武汉市",
+        "district": "江岸区",
+        "event_time": "2026-10-08 09:45",
+        "desc": {
+          "coat_color": "白",
+          "pattern": "纯色",
+          "breed": "波斯猫",
+          "size": "中"
+        },
+        "images": [
+          "/uploads/dataset_cat_001293.jpg",
+          "/uploads/dataset_cat_001294.jpg",
+          "/uploads/dataset_cat_001295.jpg"
+        ]
+      }
+    ]
+  }
+]
