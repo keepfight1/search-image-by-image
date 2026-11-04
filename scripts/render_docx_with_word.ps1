@@ -20,6 +20,7 @@ $word.AutomationSecurity = 3
 try {
     $document = $word.Documents.Open($resolvedDocument, $false, $true)
     try {
+        $document.Repaginate()
         $pageCount = $document.ComputeStatistics(2)
         for ($page = 1; $page -le $pageCount; $page++) {
             $startRange = $document.GoTo(1, 1, $page)

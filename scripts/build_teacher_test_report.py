@@ -16,7 +16,7 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_DIR = ROOT / "teacher_test_cases"
 DATA_PATH = PACKAGE_DIR / "批量测试结果.json"
-OUTPUT_PATH = PACKAGE_DIR / "寻猫平台测试报告.docx"
+OUTPUT_PATH = PACKAGE_DIR / "寻猫平台测试报告_阈值0.30.docx"
 
 GREEN = "245C3B"
 LIGHT_GREEN = "EAF3EC"
@@ -354,7 +354,7 @@ def main() -> None:
         rows,
         [1.4, 1.2, 1.2, 1.3, 1.4],
     )
-    add_body(document, "Top-1/Top-5：正确身份是否进入前 1/前 5，不考虑阈值。Recall@1：正确身份排第 1 且相似分达到 0.45。80 张正样本中有 1 张未检测到猫，按失败计入分母。")
+    add_body(document, f"Top-1/Top-5：正确身份是否进入前 1/前 5，不考虑阈值。Recall@1：正确身份排第 1 且相似分达到 {package['threshold']:.2f}。80 张正样本中有 1 张未检测到猫，按失败计入分母。")
 
     add_heading(document, "结果解读", 2)
     add_table(

@@ -59,7 +59,7 @@ def main() -> None:
     parser.add_argument("--testset", type=Path, default=ROOT / "dataset_testset")
     parser.add_argument("--database", type=Path, default=Settings.from_env().database_path)
     parser.add_argument("--report", type=Path, default=ROOT / "docs" / "dataset图库评测报告.md")
-    parser.add_argument("--threshold", type=float, default=0.45)
+    parser.add_argument("--threshold", type=float, default=0.30)
     args = parser.parse_args()
     testset = args.testset.resolve()
     with (testset / "manifest.csv").open(encoding="utf-8-sig", newline="") as handle:

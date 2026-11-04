@@ -33,7 +33,7 @@ def main() -> None:
             feature_dir=data / "features",
             max_upload_bytes=5 * 1024 * 1024,
             embedding_provider="onnx",
-            thresholds={"cat": 0.45, "dog": 0.68},
+            thresholds={"cat": 0.30, "dog": 0.68},
             cors_origins=(),
         )
         with TestClient(create_app(settings)) as client:

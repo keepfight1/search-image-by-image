@@ -25,7 +25,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts\download_models.py
 $env:BACKEND_EMBEDDING_PROVIDER = 'onnx'
 $env:BACKEND_ENABLE_LEGACY = '0'
-$env:BACKEND_THRESHOLDS = '{"cat":0.45,"dog":0.68}'
+$env:BACKEND_THRESHOLDS = '{"cat":0.30,"dog":0.68}'
 cd backend
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -38,7 +38,7 @@ npm ci
 npm run dev
 ```
 
-访问 `http://localhost:5173`。API 文档在 `http://127.0.0.1:8000/docs`。首次下载的两个模型约 456 MB，脚本会核对 SHA256。端口 8000 仅应在本机使用；对外只暴露前端反向代理。`0.45` 是在同源样本上选取的演示候选显示阈值，**未经外部猫样本校准，不可作为自动认领或上线阈值**。
+访问 `http://localhost:5173`。API 文档在 `http://127.0.0.1:8000/docs`。首次下载的两个模型约 456 MB，脚本会核对 SHA256。端口 8000 仅应在本机使用；对外只暴露前端反向代理。当前演示候选显示阈值为 `0.30`；降低阈值会增加召回，也会增加库外猫的误候选，**未经外部猫样本校准，不可作为自动认领或上线阈值**。
 
 管理员可在服务所在机器执行 `python scripts/create_admin.py` 创建随机密码的 `admin` 账号，密码保存在未跟踪的 `backend/data/admin-credentials.txt`。已有账号可用 `python scripts/promote_admin.py 用户名` 授权，重新登录后显示管理员页面。管理员可查看并删除任意走失/发现线索；删除为软删除，从浏览及匹配中移除。此操作不通过公开 HTTP 创建管理员。
 

@@ -25,7 +25,7 @@ class Settings:
     def from_env(cls) -> "Settings":
         data_dir = Path(os.getenv("BACKEND_DATA_DIR", BACKEND_DIR / "data")).resolve()
         provider = os.getenv("BACKEND_EMBEDDING_PROVIDER", "lightweight").strip().lower()
-        default_thresholds = '{"cat": 0.45, "dog": 0.68}' if provider == "onnx" else '{"cat": 0.72, "dog": 0.68}'
+        default_thresholds = '{"cat": 0.30, "dog": 0.68}'
         threshold_text = os.getenv("BACKEND_THRESHOLDS", default_thresholds)
         thresholds = json.loads(threshold_text)
         if set(thresholds) != {"cat", "dog"}:

@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-04T12:34:06",
+  "generated_at": "2026-11-04T14:17:04",
   "model_version": "pet-recognition-base:8691f5f6d0ce:21045851f390",
-  "threshold": 0.45,
+  "threshold": 0.3,
   "gallery_reports": 152,
   "gallery_vectors": 1757,
   "metadata": {
@@ -34,7 +34,7 @@
         "top_id": "dataset-sighting-p_0333",
         "top_score": 0.9223,
         "candidate_count": 152,
-        "accepted_candidate_count": 1,
+        "accepted_candidate_count": 7,
         "top5": [
           {
             "id": "dataset-sighting-p_0333",
@@ -148,7 +148,7 @@
         "top_id": "dataset-sighting-p_0333",
         "top_score": 0.9223,
         "candidate_count": 152,
-        "accepted_candidate_count": 1,
+        "accepted_candidate_count": 7,
         "top5": [
           {
             "id": "dataset-sighting-p_0333",
@@ -316,7 +316,7 @@
         "top_id": "dataset-sighting-p_0365",
         "top_score": 0.6981,
         "candidate_count": 152,
-        "accepted_candidate_count": 4,
+        "accepted_candidate_count": 31,
         "top5": [
           {
             "id": "dataset-sighting-p_0365",
@@ -427,7 +427,7 @@
         "top_id": "dataset-sighting-p_0345",
         "top_score": 0.5786,
         "candidate_count": 26,
-        "accepted_candidate_count": 3,
+        "accepted_candidate_count": 10,
         "top5": [
           {
             "id": "dataset-sighting-p_0345",
@@ -591,7 +591,7 @@
         "top_id": "dataset-sighting-p_0327",
         "top_score": 0.7758,
         "candidate_count": 152,
-        "accepted_candidate_count": 9,
+        "accepted_candidate_count": 44,
         "top5": [
           {
             "id": "dataset-sighting-p_0327",
@@ -710,7 +710,7 @@
         "top_id": "dataset-sighting-p_0346",
         "top_score": 0.7374,
         "candidate_count": 112,
-        "accepted_candidate_count": 4,
+        "accepted_candidate_count": 27,
         "top5": [
           {
             "id": "dataset-sighting-p_0346",
@@ -881,15 +881,15 @@
         "rate": 0.9375
       },
       "recall_at_1": {
-        "count": 69,
-        "rate": 0.8625
+        "count": 70,
+        "rate": 0.875
       },
       "recall_at_5": {
-        "count": 73,
-        "rate": 0.9125
+        "count": 75,
+        "rate": 0.9375
       },
       "median_candidate_count": 152,
-      "median_accepted_candidates": 4,
+      "median_accepted_candidates": 24,
       "detection_failures": 1
     },
     "location": {
@@ -903,15 +903,15 @@
         "rate": 0.975
       },
       "recall_at_1": {
-        "count": 73,
-        "rate": 0.9125
+        "count": 75,
+        "rate": 0.9375
       },
       "recall_at_5": {
-        "count": 74,
-        "rate": 0.925
+        "count": 78,
+        "rate": 0.975
       },
       "median_candidate_count": 27,
-      "median_accepted_candidates": 1,
+      "median_accepted_candidates": 6,
       "detection_failures": 1
     },
     "time": {
@@ -925,15 +925,15 @@
         "rate": 0.95
       },
       "recall_at_1": {
-        "count": 70,
-        "rate": 0.875
+        "count": 71,
+        "rate": 0.8875
       },
       "recall_at_5": {
-        "count": 74,
-        "rate": 0.925
+        "count": 76,
+        "rate": 0.95
       },
       "median_candidate_count": 112,
-      "median_accepted_candidates": 3,
+      "median_accepted_candidates": 16,
       "detection_failures": 1
     },
     "location_time": {
@@ -947,26 +947,26 @@
         "rate": 0.975
       },
       "recall_at_1": {
-        "count": 73,
-        "rate": 0.9125
+        "count": 75,
+        "rate": 0.9375
       },
       "recall_at_5": {
-        "count": 74,
-        "rate": 0.925
+        "count": 78,
+        "rate": 0.975
       },
       "median_candidate_count": 14,
-      "median_accepted_candidates": 1,
+      "median_accepted_candidates": 4,
       "detection_failures": 1
     }
   },
   "unknown_queries": {
     "total": 20,
     "detection_failures": 1,
-    "false_candidates": 12,
-    "false_candidate_rate": 0.6
+    "false_candidates": 19,
+    "false_candidate_rate": 0.95
   },
   "latency_seconds": {
-    "median": 0.3694,
-    "p95": 0.4069
+    "median": 0.5053,
+    "p95": 0.5548
   }
 }

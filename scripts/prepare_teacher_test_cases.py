@@ -279,7 +279,7 @@ def main() -> None:
     parser.add_argument("--database", type=Path, default=Settings.from_env().database_path)
     parser.add_argument("--testset", type=Path, default=ROOT / "dataset_testset")
     parser.add_argument("--output", type=Path, default=ROOT / "teacher_test_cases")
-    parser.add_argument("--threshold", type=float, default=0.45)
+    parser.add_argument("--threshold", type=float, default=0.30)
     args = parser.parse_args()
     output = args.output.resolve()
     output_images = output / "images"
@@ -473,10 +473,13 @@ def main() -> None:
     render_html(output / "测试用例展示.html", package)
     (output / "README.md").write_text(
         "# 课堂测试用例包\n\n"
-        "1. 双击 `测试用例展示.html` 查看图形化案例。\n"
-        "2. 打开 `寻猫平台测试报告.docx` 查看简明测试报告。\n"
-        "3. `典型案例.json`、`批量测试结果.json` 和 `批量测试明细.csv` 保存可复核结果。\n"
-        "4. 重新生成：`.\\.venv\\Scripts\\python.exe scripts\\prepare_teacher_test_cases.py`。\n",
+        "当前候选阈值为 `0.30`。双击 `打开测试材料.cmd`，会同时打开图形化测试页面和当前 Word 测试报告。\n\n"
+        "1. `测试用例展示.html`：图形化案例和批量指标。\n"
+        "2. `寻猫平台测试报告_阈值0.30.docx`：当前阈值的简明测试报告。\n"
+        "3. `寻猫平台测试报告.docx`：阈值 `0.45` 的历史报告，供前后对比。\n"
+        "4. `典型案例.json`、`批量测试结果.json` 和 `批量测试明细.csv`：可复核结果。\n"
+        "5. 重新生成：`.\\.venv\\Scripts\\python.exe scripts\\prepare_teacher_test_cases.py`。\n\n"
+        "降低阈值会增加召回，同时也会增加库外猫的误候选；结果仍需结合地点、时间和照片人工确认。\n",
         encoding="utf-8",
     )
     print(json.dumps(package, ensure_ascii=False, indent=2), flush=True)

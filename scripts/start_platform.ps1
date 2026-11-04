@@ -32,7 +32,7 @@ if ($Mode -eq "backend") {
     $Host.UI.RawUI.WindowTitle = "Cat Search Platform - Backend"
     $env:BACKEND_EMBEDDING_PROVIDER = "onnx"
     $env:BACKEND_ENABLE_LEGACY = "0"
-    $env:BACKEND_THRESHOLDS = '{"cat":0.45,"dog":0.68}'
+    $env:BACKEND_THRESHOLDS = '{"cat":0.30,"dog":0.68}'
     Set-Location -LiteralPath $backendDir
     & $pythonExe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
     exit $LASTEXITCODE

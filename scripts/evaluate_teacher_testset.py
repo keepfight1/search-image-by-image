@@ -43,7 +43,7 @@ def median(values: list[float]) -> float | None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=Path)
-    parser.add_argument("--threshold", type=float, default=0.45)
+    parser.add_argument("--threshold", type=float, default=0.30)
     args = parser.parse_args()
     if not -1 <= args.threshold <= 1:
         raise SystemExit("阈值必须在 -1 到 1 之间")
